@@ -1,0 +1,16 @@
+name: pose_analysis
+channels:
+- conda-forge
+- defaults
+- edeno
+dependencies:
+- numpy
+- scipy
+- matplotlib
+- xarray
+- spectral_connectivity
+- regularized_glm
+- jupyter
+- jupyterlab
+- pandas
+- "python >= 3.6"
