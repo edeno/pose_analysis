@@ -1,16 +1,31 @@
 name: pose_analysis
 channels:
-- conda-forge
 - defaults
+- conda-forge
 - edeno
 dependencies:
+- "python>=3.6"
+- loren_frank_data_processing
+- ripple_detection
+- replay_trajectory_classification
+- spectral_connectivity
 - numpy
+- numba
 - scipy
+- scikit-learn
 - matplotlib
 - xarray
-- spectral_connectivity
-- regularized_glm
+- hvplot
+- pandas
+- seaborn
+- dask
+- tqdm
+- statsmodels
+- patsy
 - jupyter
 - jupyterlab
-- pandas
-- "python >= 3.6"
+- nb_conda
+- setuptools
+- pytest
+- pytest-cov
+- coveralls
