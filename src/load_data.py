@@ -10,8 +10,9 @@ from loren_frank_data_processing.track_segment_classification import \
 from src.parameters import ANIMALS
 
 
-def load_data(epoch_key):
-    position_info = get_interpolated_position_info(epoch_key)
+def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
+    position_info = get_interpolated_position_info(
+        epoch_key, position_to_linearize)
     tetrode_info = make_tetrode_dataframe(
         ANIMALS).xs(epoch_key, drop_level=False)
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
@@ -62,12 +63,12 @@ def _get_pos_dataframe(epoch_key, animals):
         position_data[:, 1:], columns=field_names[1:], index=time)
 
 
-def get_interpolated_position_info(epoch_key):
+def get_interpolated_position_info(
+        epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
     position_info = _get_pos_dataframe(epoch_key, ANIMALS)
 
     track_graph, center_well_id = make_track_graph(epoch_key, ANIMALS)
-    position = position_info.loc[:, [
-        'tailBase_x', 'tailBase_y']].values
+    position = position_info.loc[:, position_to_linearize].values
     track_segment_id = classify_track_segments(
         track_graph, position,
         route_euclidean_distance_scaling=1E-1,
