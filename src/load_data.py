@@ -85,7 +85,7 @@ def get_interpolated_position_info(epoch_key):
         track_segment_id.reindex(index=position_info.index, method='pad'))
 
     EDGE_ORDER = [0, 1, 3, 2, 4]
-    EDGE_SPACING = [0, 0, 0, 0]
+    EDGE_SPACING = [15, 0, 15, 0]
 
     position_info['linear_position'] = convert_linear_distance_to_linear_position(
         position_info.linear_distance.values,
