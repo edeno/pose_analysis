@@ -70,8 +70,8 @@ def get_interpolated_position_info(epoch_key):
         'tailBase_x', 'tailBase_y']].values
     track_segment_id = classify_track_segments(
         track_graph, position,
-        route_euclidean_distance_scaling=1E5,
-        sensor_std_dev=25)
+        route_euclidean_distance_scaling=1E-1,
+        sensor_std_dev=10)
     track_segment_id = pd.DataFrame(
         track_segment_id, index=position_info.index)
     position_info['linear_distance'] = calculate_linear_distance(
