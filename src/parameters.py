@@ -15,3 +15,6 @@ ANIMALS = {
     # 'jaq': Animal(directory=join(RAW_DATA_DIR, 'jaq'), short_name='jaq'),
     'Roqui': Animal(directory=join(RAW_DATA_DIR, 'Roqui'), short_name='Roqui'),
 }
+
+EDGE_ORDER = [0, 1, 3, 2, 4]
+EDGE_SPACING = [15, 0, 15, 0]
