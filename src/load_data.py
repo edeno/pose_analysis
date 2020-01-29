@@ -72,7 +72,8 @@ def _get_linear_position_hmm(
         sensor_std_dev=5,
         diagonal_bias=0.5,
         edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-        position_to_linearize=['tailBase_x', 'tailBase_y']):
+        position_to_linearize=['tailBase_x', 'tailBase_y'],
+        position_sampling_frequency=125):
     animal, day, epoch = epoch_key
     track_graph, center_well_id = make_track_graph(epoch_key, animals)
     position = position_df.loc[:, position_to_linearize].values
@@ -107,7 +108,7 @@ def _get_linear_position_hmm(
         edge_order=edge_order, edge_spacing=edge_spacing)
     position_df['linear_velocity'] = calculate_linear_velocity(
         position_df.linear_distance, smooth_duration=0.500,
-        sampling_frequency=29)
+        sampling_frequency=position_sampling_frequency)
     position_df['linear_speed'] = np.abs(position_df.linear_velocity)
     position_df['is_correct'] = position_df.is_correct.fillna(False)
 
@@ -118,7 +119,7 @@ def get_position_info(
     epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         skip_linearization=False, route_euclidean_distance_scaling=1E-1,
-        sensor_std_dev=5, diagonal_bias=0.5,
+        sensor_std_dev=5, diagonal_bias=0.5, position_sampling_frequency=125,
 ):
     position_df = _get_pos_dataframe(epoch_key, ANIMALS)
 
@@ -128,7 +129,8 @@ def get_position_info(
             max_distance_from_well, route_euclidean_distance_scaling,
             min_distance_traveled, sensor_std_dev, diagonal_bias,
             edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-            position_to_linearize=position_to_linearize)
+            position_to_linearize=position_to_linearize,
+            position_sampling_frequency=position_sampling_frequency)
 
     return position_df
 
@@ -147,6 +149,7 @@ def get_interpolated_position_info(
         max_distance_from_well, route_euclidean_distance_scaling,
         min_distance_traveled, sensor_std_dev, diagonal_bias,
         edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-        position_to_linearize=position_to_linearize)
+        position_to_linearize=position_to_linearize,
+        position_sampling_frequency=500)
 
     return position_info
