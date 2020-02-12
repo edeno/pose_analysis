@@ -23,7 +23,7 @@ def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
-        ['ca1R', 'ca1l'])].index
+        ['ca1R', 'ca1L'])].index
 
     def _time_function(*args, **kwargs):
         return position_info.index
