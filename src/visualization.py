@@ -79,16 +79,16 @@ def plot_classifier_time_slice(
     # ax 3
     axes[3].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
-        data["position_info"]
+        np.abs(data["position_info"]
         .reset_index()
         .set_index(t)
         .loc[time_slice]
-        .speed.values.squeeze(),
+        .tailBase_vel.values.squeeze()),
         color="lightgrey",
         linewidth=1,
         alpha=0.5,
     )
-    axes[3].set_ylabel("Speed [cm / s]")
+    axes[3].set_ylabel("tailBase_vel [cm / s]")
     axes[3].set_xlabel("Time [ms]")
     sns.despine()
 
@@ -165,15 +165,15 @@ def plot_local_non_local_time_slice(
     # ax 3
     axes[3].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
-        data["position_info"]
+        np.abs(data["position_info"]
         .reset_index()
         .set_index(t)
         .loc[time_slice]
-        .speed.values.squeeze(),
+        .tailBase_vel.values.squeeze()),
         color="lightgrey",
         linewidth=1,
         alpha=0.5,
     )
-    axes[3].set_ylabel("Speed [cm / s]")
+    axes[3].set_ylabel("tailBase_vel [cm / s]")
     axes[3].set_xlabel("Time [ms]")
     sns.despine()
