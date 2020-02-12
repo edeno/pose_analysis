@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
@@ -11,8 +12,9 @@ from loren_frank_data_processing.track_segment_classification import (
     calculate_linear_distance, classify_track_segments)
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
-
-from src.parameters import ANIMALS, EDGE_ORDER, EDGE_SPACING
+from ripple_detection import get_multiunit_population_firing_rate
+from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
+                            SAMPLING_FREQUENCY)
 
 
 def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
@@ -28,10 +30,18 @@ def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
 
     multiunits = get_all_multiunit_indicators(
         tetrode_keys, ANIMALS, _time_function)
+    multiunit_spikes = (np.any(~np.isnan(multiunits.values), axis=1)
+                        ).astype(np.float)
+    multiunit_firing_rate = pd.DataFrame(
+        get_multiunit_population_firing_rate(
+            multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
+        columns=['firing_rate'])
 
     return {
         'position_info': position_info,
-        'multiunits': multiunits
+        'multiunits': multiunits,
+        'multiunit_firing_rate': multiunit_firing_rate,
+        'tetrode_info': tetrode_info,
     }
 
 
