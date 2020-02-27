@@ -1,4 +1,3 @@
-
 import networkx as nx
 import numpy as np
 from loren_frank_data_processing.track_segment_classification import (
@@ -70,6 +69,13 @@ def calculate_replay_distance(
         # Add actual position node
         add_node(actual_pos, actual_edge, copy_graph, 'actual_position')
         add_node(map_pos, map_edge, copy_graph, 'map_position')
+        if np.all(actual_edge == map_edge):
+            (x1, y1), (x2, y2) = actual_pos, map_pos
+            distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            nx.add_path(
+                copy_graph, ['actual_position', 'map_position'],
+                distance=distance)
+
         replay_distance_from_animal_position.append(
             nx.shortest_path_length(copy_graph, source='actual_position',
                                     target='map_position', weight='distance'))
