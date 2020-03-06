@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
@@ -13,6 +12,7 @@ from loren_frank_data_processing.track_segment_classification import (
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import get_multiunit_population_firing_rate
+
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
@@ -92,7 +92,9 @@ def _get_linear_position_hmm(
         route_euclidean_distance_scaling=route_euclidean_distance_scaling,
         sensor_std_dev=sensor_std_dev,
         diagonal_bias=diagonal_bias)
-    position_df['linear_distance'] = calculate_linear_distance(
+    (position_df['linear_distance'],
+     position_df['projected_x_position'],
+     position_df['projected_y_position']) = calculate_linear_distance(
         track_graph, track_segment_id, center_well_id, position)
     position_df['track_segment_id'] = track_segment_id
     SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
