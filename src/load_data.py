@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
@@ -13,6 +12,7 @@ from loren_frank_data_processing.track_segment_classification import (
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import get_multiunit_population_firing_rate
+
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
@@ -50,7 +50,7 @@ def _get_pos_dataframe(epoch_key, animals):
     struct = get_data_structure(
         animals[animal], day, 'posdlc', 'posdlc')[epoch - 1]
     position_data = struct['data'][0, 0]
-    field_names = struct['fields'][0, 0][0].split(' ')
+    field_names = struct['fields'][0, 0][0].split()
     time = pd.TimedeltaIndex(
         position_data[:, 0], unit='s', name='time')
 
@@ -93,8 +93,8 @@ def _get_linear_position_hmm(
         sensor_std_dev=sensor_std_dev,
         diagonal_bias=diagonal_bias)
     (position_df['linear_distance'],
-     position_df['projected_position_x'],
-     position_df['projected_position_y']) = calculate_linear_distance(
+     position_df['projected_x_position'],
+     position_df['projected_y_position']) = calculate_linear_distance(
         track_graph, track_segment_id, center_well_id, position)
     position_df['track_segment_id'] = track_segment_id
     SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
@@ -105,24 +105,26 @@ def _get_linear_position_hmm(
     position_df = position_df.assign(
         arm_name=lambda df: df.track_segment_id.map(SEGMENT_ID_TO_ARM_NAME)
     )
+    try:
+        segments_df, labeled_segments = get_segments_df(
+            epoch_key, animals, position_df, max_distance_from_well,
+            min_distance_traveled)
 
-    segments_df, labeled_segments = get_segments_df(
-        epoch_key, animals, position_df, max_distance_from_well,
-        min_distance_traveled)
-
-    segments_df = pd.merge(
-        labeled_segments, segments_df, right_index=True,
-        left_on='labeled_segments', how='outer')
-    position_df = pd.concat((position_df, segments_df), axis=1)
-    position_df['linear_position'] = _calulcate_linear_position(
-        position_df.linear_distance.values,
-        position_df.track_segment_id.values, track_graph, center_well_id,
-        edge_order=edge_order, edge_spacing=edge_spacing)
+        segments_df = pd.merge(
+            labeled_segments, segments_df, right_index=True,
+            left_on='labeled_segments', how='outer')
+        position_df = pd.concat((position_df, segments_df), axis=1)
+        position_df['linear_position'] = _calulcate_linear_position(
+            position_df.linear_distance.values,
+            position_df.track_segment_id.values, track_graph, center_well_id,
+            edge_order=edge_order, edge_spacing=edge_spacing)
+        position_df['is_correct'] = position_df.is_correct.fillna(False)
+    except TypeError:
+        position_df['linear_position'] = position_df['linear_distance'].copy()
     position_df['linear_velocity'] = calculate_linear_velocity(
         position_df.linear_distance, smooth_duration=0.500,
         sampling_frequency=position_sampling_frequency)
     position_df['linear_speed'] = np.abs(position_df.linear_velocity)
-    position_df['is_correct'] = position_df.is_correct.fillna(False)
 
     return position_df
 

@@ -1,7 +1,6 @@
 from os.path import abspath, dirname, join, pardir
 
 import numpy as np
-
 from loren_frank_data_processing import Animal
 
 # LFP sampling frequency

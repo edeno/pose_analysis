@@ -80,10 +80,10 @@ def plot_classifier_time_slice(
     axes[3].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         np.abs(data["position_info"]
-        .reset_index()
-        .set_index(t)
-        .loc[time_slice]
-        .tailBase_vel.values.squeeze()),
+               .reset_index()
+               .set_index(t)
+               .loc[time_slice]
+               .tailBase_vel.values.squeeze()),
         color="lightgrey",
         linewidth=1,
         alpha=0.5,
@@ -166,10 +166,10 @@ def plot_local_non_local_time_slice(
     axes[3].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         np.abs(data["position_info"]
-        .reset_index()
-        .set_index(t)
-        .loc[time_slice]
-        .tailBase_vel.values.squeeze()),
+               .reset_index()
+               .set_index(t)
+               .loc[time_slice]
+               .tailBase_vel.values.squeeze()),
         color="lightgrey",
         linewidth=1,
         alpha=0.5,
