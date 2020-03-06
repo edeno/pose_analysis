@@ -1,7 +1,6 @@
 from os.path import abspath, dirname, join, pardir
 
 import numpy as np
-
 from loren_frank_data_processing import Animal
 
 # LFP sampling frequency
@@ -14,7 +13,8 @@ PROCESSED_DATA_DIR = join(ROOT_DIR, 'Processed-Data')
 FIGURE_DIR = join(ROOT_DIR, 'figures')
 
 ANIMALS = {
-    # 'jaq': Animal(directory=join(RAW_DATA_DIR, 'jaq'), short_name='jaq'),
+    'Jaq': Animal(directory="/stelmo/abhilasha/animals/Jaq/filterframework",
+                  short_name='Jaq'),
     'Roqui': Animal(directory=join(RAW_DATA_DIR, 'Roqui'), short_name='Roqui'),
 }
 
