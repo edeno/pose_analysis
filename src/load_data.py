@@ -105,24 +105,26 @@ def _get_linear_position_hmm(
     position_df = position_df.assign(
         arm_name=lambda df: df.track_segment_id.map(SEGMENT_ID_TO_ARM_NAME)
     )
+    try:
+        segments_df, labeled_segments = get_segments_df(
+            epoch_key, animals, position_df, max_distance_from_well,
+            min_distance_traveled)
 
-    segments_df, labeled_segments = get_segments_df(
-        epoch_key, animals, position_df, max_distance_from_well,
-        min_distance_traveled)
-
-    segments_df = pd.merge(
-        labeled_segments, segments_df, right_index=True,
-        left_on='labeled_segments', how='outer')
-    position_df = pd.concat((position_df, segments_df), axis=1)
-    position_df['linear_position'] = _calulcate_linear_position(
-        position_df.linear_distance.values,
-        position_df.track_segment_id.values, track_graph, center_well_id,
-        edge_order=edge_order, edge_spacing=edge_spacing)
+        segments_df = pd.merge(
+            labeled_segments, segments_df, right_index=True,
+            left_on='labeled_segments', how='outer')
+        position_df = pd.concat((position_df, segments_df), axis=1)
+        position_df['linear_position'] = _calulcate_linear_position(
+            position_df.linear_distance.values,
+            position_df.track_segment_id.values, track_graph, center_well_id,
+            edge_order=edge_order, edge_spacing=edge_spacing)
+        position_df['is_correct'] = position_df.is_correct.fillna(False)
+    except TypeError:
+        position_df['linear_position'] = position_df['linear_distance'].copy()
     position_df['linear_velocity'] = calculate_linear_velocity(
         position_df.linear_distance, smooth_duration=0.500,
         sampling_frequency=position_sampling_frequency)
     position_df['linear_speed'] = np.abs(position_df.linear_velocity)
-    position_df['is_correct'] = position_df.is_correct.fillna(False)
 
     return position_df
 
