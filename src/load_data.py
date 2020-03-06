@@ -50,7 +50,7 @@ def _get_pos_dataframe(epoch_key, animals):
     struct = get_data_structure(
         animals[animal], day, 'posdlc', 'posdlc')[epoch - 1]
     position_data = struct['data'][0, 0]
-    field_names = struct['fields'][0, 0][0].split(' ')
+    field_names = struct['fields'][0, 0][0].split()
     time = pd.TimedeltaIndex(
         position_data[:, 0], unit='s', name='time')
 
