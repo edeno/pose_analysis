@@ -17,7 +17,7 @@ from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
 
-def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
+def load_data(epoch_key, position_to_linearize=['tail_x', 'tail_y']):
     position_info = get_interpolated_position_info(
         epoch_key, position_to_linearize)
     tetrode_info = make_tetrode_dataframe(
