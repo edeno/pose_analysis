@@ -17,7 +17,7 @@ from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
 
-def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
+def load_data(epoch_key, position_to_linearize=['tail_x', 'tail_y']):
     position_info = get_interpolated_position_info(
         epoch_key, position_to_linearize)
     tetrode_info = make_tetrode_dataframe(
@@ -60,7 +60,7 @@ def _get_pos_dataframe(epoch_key, animals):
 
 def get_segments_df(epoch_key, animals, position_df, max_distance_from_well=5,
                     min_distance_traveled=50,
-                    position_to_linearize=['tailBase_x', 'tailBase_y']):
+                    position_to_linearize=['tail_x', 'tail_y']):
     well_locations = get_well_locations(epoch_key, animals)
     position = position_df.loc[:, position_to_linearize].values
     segments_df, labeled_segments = segment_path(
@@ -82,7 +82,7 @@ def _get_linear_position_hmm(
         sensor_std_dev=5,
         diagonal_bias=0.5,
         edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-        position_to_linearize=['tailBase_x', 'tailBase_y'],
+        position_to_linearize=['tail_x', 'tail_y'],
         position_sampling_frequency=125):
     animal, day, epoch = epoch_key
     track_graph, center_well_id = make_track_graph(epoch_key, animals)
@@ -92,7 +92,9 @@ def _get_linear_position_hmm(
         route_euclidean_distance_scaling=route_euclidean_distance_scaling,
         sensor_std_dev=sensor_std_dev,
         diagonal_bias=diagonal_bias)
-    position_df['linear_distance'] = calculate_linear_distance(
+    (position_df['linear_distance'],
+     position_df['projected_position_x'],
+     position_df['projected_position_y']) = calculate_linear_distance(
         track_graph, track_segment_id, center_well_id, position)
     position_df['track_segment_id'] = track_segment_id
     SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
@@ -126,7 +128,7 @@ def _get_linear_position_hmm(
 
 
 def get_position_info(
-    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
+    epoch_key, position_to_linearize=['tail_x', 'tail_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         skip_linearization=False, route_euclidean_distance_scaling=1E-1,
         sensor_std_dev=5, diagonal_bias=0.5, position_sampling_frequency=125,
@@ -144,9 +146,10 @@ def get_position_info(
 
     return position_df
 
-
+# max_distance_from_well=30 cms. This is perhaps ok for the tail but maybe the value needs to be lower for paws, nose etc. 
+# also eventually DIOs may help in the trajectory classification. 
 def get_interpolated_position_info(
-    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
+    epoch_key, position_to_linearize=['tail_x', 'tail_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         route_euclidean_distance_scaling=1E-1,
         sensor_std_dev=5, diagonal_bias=1E-1):
