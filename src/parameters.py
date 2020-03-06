@@ -14,7 +14,7 @@ PROCESSED_DATA_DIR = join(ROOT_DIR, 'Processed-Data')
 FIGURE_DIR = join(ROOT_DIR, 'figures')
 
 ANIMALS = {
-    # 'jaq': Animal(directory=join(RAW_DATA_DIR, 'jaq'), short_name='jaq'),
+    'Jaq': Animal(directory=join(RAW_DATA_DIR, 'Jaq'), short_name='Jaq'),
     'Roqui': Animal(directory=join(RAW_DATA_DIR, 'Roqui'), short_name='Roqui'),
 }
 
@@ -29,8 +29,8 @@ detector_parameters = {
     'spike_model_penalty': 0.5,
     'movement_state_transition_type': 'random_walk',
     'multiunit_model_kwargs': {
-        'bandwidth': np.array([20.0, 20.0, 20.0, 20.0, 8.0])},
-    'multiunit_occupancy_kwargs': {'bandwidth': np.array([8.0])},
+        'bandwidth': np.array([20.0, 20.0, 20.0, 20.0, 8.0])}, #1-4 values correspond to the variance of the four mark dimensions and the 5th value is the variance of the position dimension 
+    'multiunit_occupancy_kwargs': {'bandwidth': np.array([8.0])}, #
     'discrete_state_transition_type': 'constant',
     'discrete_diagonal': np.array([0.00003, 0.968])
 }
@@ -42,7 +42,7 @@ classifier_parameters = {
     'continuous_transition_types': [['random_walk', 'uniform'],
                                     ['uniform',     'uniform']],
     'model_kwargs': {
-        'bandwidth': np.array([20.0, 20.0, 20.0, 20.0, 8.0])}
+        'bandwidth': np.array([20.0, 20.0, 20.0, 20.0, 8.0])} #1-4 values correspond to the variance of the four mark dimensions and the 5th value is the variance of the position dimension
 
 }
 
