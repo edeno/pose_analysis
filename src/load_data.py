@@ -19,7 +19,7 @@ from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
 
 def load_data(epoch_key, position_to_linearize=['tail_x', 'tail_y']):
     position_info = get_interpolated_position_info(
-        epoch_key, position_to_linearize)
+        epoch_key, position_to_linearize).dropna(subset=["linear_position"])
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
