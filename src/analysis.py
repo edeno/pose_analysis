@@ -16,7 +16,7 @@ def _get_MAP_estimate_2d_position_edges(posterior, track_graph, decoder):
     # Figure out which track segment it belongs to
     track_segment_id = decoder.place_bin_center_ind_to_edge_id_[
         map_position_ind]
-    map_edges = np.array(track_graph.edges)[track_segment_id]
+    map_edges = np.array(list(track_graph.edges))[track_segment_id]
 
     return map_position_2d, map_edges
 
@@ -32,7 +32,7 @@ def _get_animal_2d_projected_position_edges(
         np.arange(n_time), track_segment_id)]
 
     # Add animal's position at time to track graph
-    actual_edges = np.array(track_graph.edges)[track_segment_id]
+    actual_edges = np.array(list(track_graph.edges))[track_segment_id]
 
     return actual_projected_position, actual_edges
 
