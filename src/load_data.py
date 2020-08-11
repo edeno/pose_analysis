@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from loren_frank_data_processing import (get_all_multiunit_indicators,
+                                         get_all_spike_indicators,
+                                         make_neuron_dataframe,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
 from loren_frank_data_processing.position import (_calulcate_linear_position,
@@ -12,12 +14,11 @@ from loren_frank_data_processing.track_segment_classification import (
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import get_multiunit_population_firing_rate
-
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
 
-def load_data(epoch_key, position_to_linearize=['tail_x', 'tail_y']):
+def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
     position_info = get_interpolated_position_info(
         epoch_key, position_to_linearize).dropna(subset=["linear_position"])
     tetrode_info = make_tetrode_dataframe(
@@ -37,11 +38,19 @@ def load_data(epoch_key, position_to_linearize=['tail_x', 'tail_y']):
             multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
         columns=['firing_rate'])
 
+    time = position_info.index
+    neuron_info = make_neuron_dataframe(ANIMALS).xs(
+        epoch_key, drop_level=False)
+    spikes = get_all_spike_indicators(
+        neuron_info.index, ANIMALS, _time_function).reindex(time)
+
     return {
         'position_info': position_info,
         'multiunits': multiunits,
         'multiunit_firing_rate': multiunit_firing_rate,
         'tetrode_info': tetrode_info,
+        'neuron_info': neuron_info,
+        'spikes': spikes
     }
 
 
@@ -60,7 +69,7 @@ def _get_pos_dataframe(epoch_key, animals):
 
 def get_segments_df(epoch_key, animals, position_df, max_distance_from_well=5,
                     min_distance_traveled=50,
-                    position_to_linearize=['tail_x', 'tail_y']):
+                    position_to_linearize=['tailBase_x', 'tailBase_y']):
     well_locations = get_well_locations(epoch_key, animals)
     position = position_df.loc[:, position_to_linearize].values
     segments_df, labeled_segments = segment_path(
@@ -82,7 +91,7 @@ def _get_linear_position_hmm(
         sensor_std_dev=5,
         diagonal_bias=0.5,
         edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-        position_to_linearize=['tail_x', 'tail_y'],
+        position_to_linearize=['tailBase_x', 'tailBase_y'],
         position_sampling_frequency=125):
     animal, day, epoch = epoch_key
     track_graph, center_well_id = make_track_graph(epoch_key, animals)
@@ -130,7 +139,7 @@ def _get_linear_position_hmm(
 
 
 def get_position_info(
-    epoch_key, position_to_linearize=['tail_x', 'tail_y'],
+    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         skip_linearization=False, route_euclidean_distance_scaling=1E-1,
         sensor_std_dev=5, diagonal_bias=0.5, position_sampling_frequency=125,
@@ -148,10 +157,12 @@ def get_position_info(
 
     return position_df
 
-# max_distance_from_well=30 cms. This is perhaps ok for the tail but maybe the value needs to be lower for paws, nose etc. 
-# also eventually DIOs may help in the trajectory classification. 
+# max_distance_from_well=30 cms. This is perhaps ok for the tail but maybe the value needs to be lower for paws, nose etc.
+# also eventually DIOs may help in the trajectory classification.
+
+
 def get_interpolated_position_info(
-    epoch_key, position_to_linearize=['tail_x', 'tail_y'],
+    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         route_euclidean_distance_scaling=1E-1,
         sensor_std_dev=5, diagonal_bias=1E-1):
