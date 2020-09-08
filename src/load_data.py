@@ -29,14 +29,18 @@ def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
     def _time_function(*args, **kwargs):
         return position_info.index
 
-    multiunits = get_all_multiunit_indicators(
-        tetrode_keys, ANIMALS, _time_function)
-    multiunit_spikes = (np.any(~np.isnan(multiunits.values), axis=1)
-                        ).astype(np.float)
-    multiunit_firing_rate = pd.DataFrame(
-        get_multiunit_population_firing_rate(
-            multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
-        columns=['firing_rate'])
+    try:
+        multiunits = get_all_multiunit_indicators(
+            tetrode_keys, ANIMALS, _time_function)
+        multiunit_spikes = (np.any(~np.isnan(multiunits.values), axis=1)
+                            ).astype(np.float)
+        multiunit_firing_rate = pd.DataFrame(
+            get_multiunit_population_firing_rate(
+                multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
+            columns=['firing_rate'])
+    except AttributeError:
+        multiunits = None
+        multiunit_firing_rate = None
 
     time = position_info.index
     neuron_info = make_neuron_dataframe(ANIMALS).xs(
