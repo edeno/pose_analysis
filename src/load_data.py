@@ -22,14 +22,12 @@ def load_data(epoch_key,
               position_to_linearize=['tailBase_x', 'tailBase_y'],
               max_distance_from_well=30,
               min_distance_traveled=50,
-              position_sampling_frequency=125,
               ):
     position_info = get_interpolated_position_info(
         epoch_key,
         position_to_linearize=position_to_linearize,
         max_distance_from_well=max_distance_from_well,
         min_distance_traveled=min_distance_traveled,
-        position_sampling_frequency=125,
     ).dropna(subset=["linear_position"])
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
