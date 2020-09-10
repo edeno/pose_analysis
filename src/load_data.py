@@ -18,9 +18,19 @@ from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
 
-def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
+def load_data(epoch_key,
+              position_to_linearize=['tailBase_x', 'tailBase_y'],
+              max_distance_from_well=30,
+              min_distance_traveled=50,
+              position_sampling_frequency=125,
+              ):
     position_info = get_interpolated_position_info(
-        epoch_key, position_to_linearize).dropna(subset=["linear_position"])
+        epoch_key,
+        position_to_linearize=position_to_linearize,
+        max_distance_from_well=max_distance_from_well,
+        min_distance_traveled=min_distance_traveled,
+        position_sampling_frequency=125,
+    ).dropna(subset=["linear_position"])
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
@@ -36,7 +46,8 @@ def load_data(epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y']):
                             ).astype(np.float)
         multiunit_firing_rate = pd.DataFrame(
             get_multiunit_population_firing_rate(
-                multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
+                multiunit_spikes, SAMPLING_FREQUENCY),
+            index=position_info.index,
             columns=['firing_rate'])
     except AttributeError:
         multiunits = None
@@ -71,7 +82,7 @@ def _get_pos_dataframe(epoch_key, animals):
         position_data[:, 1:], columns=field_names[1:], index=time)
 
 
-def get_segments_df(epoch_key, animals, position_df, max_distance_from_well=5,
+def get_segments_df(epoch_key, animals, position_df, max_distance_from_well=30,
                     min_distance_traveled=50,
                     position_to_linearize=['tailBase_x', 'tailBase_y']):
     well_locations = get_well_locations(epoch_key, animals)
@@ -161,7 +172,8 @@ def get_position_info(
 
     return position_df
 
-# max_distance_from_well=30 cms. This is perhaps ok for the tail but maybe the value needs to be lower for paws, nose etc.
+# max_distance_from_well=30 cms. This is perhaps ok for the tail but maybe the
+# value needs to be lower for paws, nose etc.
 # also eventually DIOs may help in the trajectory classification.
 
 
