@@ -86,3 +86,14 @@ def calculate_replay_distance(
         copy_graph.remove_node('map_position')
 
     return np.asarray(replay_distance_from_animal_position)
+
+
+def get_place_field_max(classifier):
+    try:
+        max_ind = classifier.place_fields_.argmax('position')
+        return np.asarray(
+            classifier.place_fields_.position[max_ind].values.tolist())
+    except AttributeError:
+        return np.asarray(
+            [classifier.place_bin_centers_[gpi.argmax()]
+             for gpi in classifier.ground_process_intensities_])
