@@ -29,6 +29,7 @@ def load_data(epoch_key,
         max_distance_from_well=max_distance_from_well,
         min_distance_traveled=min_distance_traveled,
     ).dropna(subset=["linear_position"])
+
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
@@ -54,6 +55,7 @@ def load_data(epoch_key,
     time = position_info.index
     neuron_info = make_neuron_dataframe(ANIMALS).xs(
         epoch_key, drop_level=False)
+    neuron_info = neuron_info.loc[neuron_info.accepted.astype(bool)]
     spikes = get_all_spike_indicators(
         neuron_info.index, ANIMALS, _time_function).reindex(time)
 
