@@ -130,3 +130,9 @@ dmypy.json
 *.nc
 
 ssm/
+
+# Media
+*.mp4
+*.pkl
+*.avi
+*.png
