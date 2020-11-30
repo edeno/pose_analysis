@@ -1,5 +1,6 @@
 from logging import getLogger
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 from loren_frank_data_processing import (get_all_multiunit_indicators,
@@ -9,8 +10,7 @@ from loren_frank_data_processing import (get_all_multiunit_indicators,
 from loren_frank_data_processing.core import get_data_structure
 from loren_frank_data_processing.position import (_calulcate_linear_position,
                                                   calculate_linear_velocity,
-                                                  get_well_locations,
-                                                  make_track_graph)
+                                                  get_well_locations)
 from loren_frank_data_processing.track_segment_classification import (
     calculate_linear_distance, classify_track_segments)
 from loren_frank_data_processing.well_traversal_classification import (
@@ -19,11 +19,77 @@ from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
                               get_multiunit_population_firing_rate,
                               multiunit_HSE_detector)
 from ripple_detection.core import gaussian_smooth
+from scipy.io import loadmat
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
 
 logger = getLogger(__name__)
+
+
+def get_track_segments():
+    '''
+
+    Parameters
+    ----------
+    epoch_key : tuple
+    animals : dict of namedtuples
+
+    Returns
+    -------
+    track_segments : ndarray, shape (n_segments, n_nodes, n_space)
+    center_well_position : ndarray, shape (n_space,)
+
+    '''
+    linearcoord = loadmat(
+        '../Raw-Data/jaq/wTrack_coordinates.mat', squeeze_me=True)['coords']
+    track_segments = [np.stack(((arm[:-1, :, 0], arm[1:, :, 0])), axis=1)
+                      for arm in linearcoord]
+    center_well_position = track_segments[0][0][0]
+    track_segments = np.concatenate(track_segments)
+    _, unique_ind = np.unique(track_segments, return_index=True, axis=0)
+    return track_segments[np.sort(unique_ind)], center_well_position
+
+
+def make_track_graph(epoch_key, animals, convert_to_pixels=False):
+    '''
+
+    Parameters
+    ----------
+    epoch_key : tuple, (animal, day, epoch)
+    animals : dict of namedtuples
+
+    Returns
+    -------
+    track_graph : networkx Graph
+    center_well_id : int
+
+    '''
+    track_segments, center_well_position = get_track_segments()
+    nodes = track_segments.copy().reshape((-1, 2))
+    _, unique_ind = np.unique(nodes, return_index=True, axis=0)
+    nodes = nodes[np.sort(unique_ind)]
+
+    edges = np.zeros(track_segments.shape[:2], dtype=np.int)
+    for node_id, node in enumerate(nodes):
+        edge_ind = np.nonzero(np.isin(track_segments, node).sum(axis=2) > 1)
+        edges[edge_ind] = node_id
+
+    edge_distances = np.linalg.norm(
+        np.diff(track_segments, axis=-2).squeeze(axis=-2), axis=1)
+
+    track_graph = nx.Graph()
+
+    for node_id, node_position in enumerate(nodes):
+        track_graph.add_node(node_id, pos=tuple(node_position))
+
+    for edge, distance in zip(edges, edge_distances):
+        nx.add_path(track_graph, edge, distance=distance)
+
+    center_well_id = np.unique(
+        np.nonzero(np.isin(nodes, center_well_position).sum(axis=1) > 1)[0])[0]
+
+    return track_graph, center_well_id
 
 
 def get_labels(times, time):
