@@ -15,8 +15,9 @@ from loren_frank_data_processing.track_segment_classification import (
     calculate_linear_distance, classify_track_segments)
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
-from ripple_detection import (Kay_ripple_detector, multiunit_HSE_detector, filter_ripple_band,
-                              get_multiunit_population_firing_rate)
+from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
+                              get_multiunit_population_firing_rate,
+                              multiunit_HSE_detector)
 from ripple_detection.core import gaussian_smooth
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
@@ -96,8 +97,9 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
         consensus_ripple_trace, 0.004, LFP_SAMPLING_FREQUENCY)
     consensus_ripple_trace = np.sqrt(consensus_ripple_trace)
     consensus_ripple_trace = pd.DataFrame(
-        {"consensus_ripple_trace": consensus_ripple_trace}, index=ripple_lfps.index)
-    
+        {"consensus_ripple_trace": consensus_ripple_trace},
+        index=ripple_lfps.index)
+
     ripple_power = estimate_ripple_band_power(
         ripple_lfps, LFP_SAMPLING_FREQUENCY)
     interpolated_ripple_power = ripple_power.interpolate()
@@ -116,7 +118,8 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
                 ripple_power_zscore=ripple_power_zscore,
                 is_ripple=is_ripple,
                 consensus_ripple_trace=consensus_ripple_trace,
-               )
+                )
+
 
 def get_adhoc_multiunit(position_info, tetrode_keys, time_function):
     time = position_info.index
@@ -135,7 +138,8 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function):
         lambda df: (df - df.mean()) / df.std())
 
     multiunit_high_synchrony_times = multiunit_HSE_detector(
-        time, multiunit_spikes, position_info.tailBase_vel.values, SAMPLING_FREQUENCY,
+        time, multiunit_spikes, position_info.tailBase_vel.values,
+        SAMPLING_FREQUENCY,
         minimum_duration=np.timedelta64(15, 'ms'), zscore_threshold=2.0,
         close_event_threshold=np.timedelta64(0, 'ms'))
     multiunit_high_synchrony_times.index = (
