@@ -18,8 +18,9 @@ from loren_frank_data_processing.well_traversal_classification import (
 from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
                               get_multiunit_population_firing_rate,
                               multiunit_HSE_detector)
-from ripple_detection.core import gaussian_smooth
+from ripple_detection.core import gaussian_smooth, get_envelope
 from scipy.io import loadmat
+from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
@@ -116,6 +117,18 @@ def estimate_ripple_band_power(lfps, sampling_frequency):
     return power.reindex(lfps.index)
 
 
+def get_ripple_consensus_trace(ripple_filtered_lfps, sampling_frequency):
+    SMOOTHING_SIGMA = 0.004
+    ripple_consensus_trace = np.full_like(ripple_filtered_lfps, np.nan)
+    not_null = np.all(pd.notnull(ripple_filtered_lfps), axis=1)
+    ripple_consensus_trace[not_null] = get_envelope(
+        np.asarray(ripple_filtered_lfps)[not_null])
+    ripple_consensus_trace = np.sum(ripple_consensus_trace ** 2, axis=1)
+    ripple_consensus_trace[not_null] = gaussian_smooth(
+        ripple_consensus_trace[not_null], SMOOTHING_SIGMA, sampling_frequency)
+    return np.sqrt(ripple_consensus_trace)
+
+
 def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
     LFP_SAMPLING_FREQUENCY = 1500
 
@@ -135,20 +148,21 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
     # Load LFPs
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
         ['ca1R', 'ca1L'])].index
-    ripple_lfps = get_LFPs(tetrode_keys, ANIMALS).reindex(time)
+    ripple_lfps = get_LFPs(tetrode_keys, ANIMALS)
 
     # Get ripple filtered LFPs
     ripple_filtered_lfps = pd.DataFrame(
-        np.stack([filter_ripple_band(
-            ripple_lfps.values[:, ind],
-            sampling_frequency=LFP_SAMPLING_FREQUENCY)
-            for ind in np.arange(ripple_lfps.shape[1])], axis=1),
+        filter_ripple_band(np.asarray(ripple_lfps)),
         index=ripple_lfps.index)
 
     # Get Ripple Times
     ripple_times = Kay_ripple_detector(
-        time, ripple_lfps.values, speed.values, LFP_SAMPLING_FREQUENCY,
-        zscore_threshold=2.0, close_ripple_threshold=np.timedelta64(0, 'ms'),
+        time=ripple_filtered_lfps.index,
+        filtered_lfps=ripple_filtered_lfps.values,
+        speed=speed.values,
+        sampling_frequency=LFP_SAMPLING_FREQUENCY,
+        zscore_threshold=2.0,
+        close_ripple_threshold=np.timedelta64(0, 'ms'),
         minimum_duration=np.timedelta64(15, 'ms'))
 
     ripple_times.index = ripple_times.index.rename('replay_number')
@@ -158,33 +172,38 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
         duration=lambda df: (df.end_time - df.start_time).dt.total_seconds())
 
     # Estmate ripple band power and change
-    consensus_ripple_trace = np.sum(ripple_filtered_lfps ** 2, axis=1)
-    consensus_ripple_trace = gaussian_smooth(
-        consensus_ripple_trace, 0.004, LFP_SAMPLING_FREQUENCY)
-    consensus_ripple_trace = np.sqrt(consensus_ripple_trace)
-    consensus_ripple_trace = pd.DataFrame(
-        {"consensus_ripple_trace": consensus_ripple_trace},
-        index=ripple_lfps.index)
+    ripple_consensus_trace = pd.DataFrame(
+        get_ripple_consensus_trace(
+            ripple_filtered_lfps, LFP_SAMPLING_FREQUENCY),
+        index=ripple_filtered_lfps.index,
+        columns=['ripple_consensus_trace'])
+    ripple_consensus_trace_zscore = pd.DataFrame(
+        zscore(ripple_consensus_trace, nan_policy='omit'),
+        index=ripple_filtered_lfps.index,
+        columns=['ripple_consensus_trace_zscore'])
 
-    ripple_power = estimate_ripple_band_power(
-        ripple_lfps, LFP_SAMPLING_FREQUENCY)
-    interpolated_ripple_power = ripple_power.interpolate()
+    instantaneous_ripple_power = np.full_like(ripple_filtered_lfps, np.nan)
+    not_null = np.all(pd.notnull(ripple_filtered_lfps), axis=1)
+    instantaneous_ripple_power[not_null] = get_envelope(
+        np.asarray(ripple_filtered_lfps)[not_null])**2
+    instantaneous_ripple_power_change = np.nanmedian(
+        instantaneous_ripple_power /
+        np.nanmean(instantaneous_ripple_power, axis=0),
+        axis=1)
+    instantaneous_ripple_power_change = pd.DataFrame(
+        instantaneous_ripple_power_change,
+        index=ripple_filtered_lfps.index,
+        columns=['instantaneous_ripple_power_change'])
 
-    ripple_power_change = interpolated_ripple_power.transform(
-        lambda df: df / df.mean())
-    ripple_power_zscore = np.log(interpolated_ripple_power).transform(
-        lambda df: (df - df.mean()) / df.std())
-
-    return dict(ripple_times=ripple_times,
-                ripple_labels=ripple_labels,
-                ripple_filtered_lfps=ripple_filtered_lfps,
-                ripple_power=ripple_power,
-                ripple_lfps=ripple_lfps,
-                ripple_power_change=ripple_power_change,
-                ripple_power_zscore=ripple_power_zscore,
-                is_ripple=is_ripple,
-                consensus_ripple_trace=consensus_ripple_trace,
-                )
+    return dict(
+        ripple_times=ripple_times,
+        ripple_labels=ripple_labels,
+        ripple_filtered_lfps=ripple_filtered_lfps,
+        ripple_consensus_trace=ripple_consensus_trace,
+        ripple_lfps=ripple_lfps,
+        ripple_consensus_trace_zscore=ripple_consensus_trace_zscore,
+        instantaneous_ripple_power_change=instantaneous_ripple_power_change,
+        is_ripple=is_ripple)
 
 
 def get_adhoc_multiunit(position_info, tetrode_keys, time_function):
