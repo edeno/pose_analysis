@@ -1,6 +1,5 @@
 from logging import getLogger
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 from loren_frank_data_processing import (get_all_multiunit_indicators,
@@ -24,6 +23,7 @@ from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
+from track_linearization import make_track_graph as _make_track_graph
 
 logger = getLogger(__name__)
 
@@ -76,21 +76,7 @@ def make_track_graph(epoch_key, animals, convert_to_pixels=False):
         edge_ind = np.nonzero(np.isin(track_segments, node).sum(axis=2) > 1)
         edges[edge_ind] = node_id
 
-    edge_distances = np.linalg.norm(
-        np.diff(track_segments, axis=-2).squeeze(axis=-2), axis=1)
-
-    track_graph = nx.Graph()
-
-    for node_id, node_position in enumerate(nodes):
-        track_graph.add_node(node_id, pos=tuple(node_position))
-
-    for edge, distance in zip(edges, edge_distances):
-        nx.add_path(track_graph, edge, distance=distance)
-
-    center_well_id = np.unique(
-        np.nonzero(np.isin(nodes, center_well_position).sum(axis=1) > 1)[0])[0]
-
-    return track_graph, center_well_id
+    return _make_track_graph(nodes, edges)
 
 
 def get_labels(times, time):
@@ -282,7 +268,7 @@ def load_data(epoch_key,
     logger.info('Finding ripple times...')
     adhoc_ripple = get_adhoc_ripple(epoch_key, tetrode_info, time)
 
-    track_graph, center_well_id = make_track_graph(epoch_key, ANIMALS)
+    track_graph = make_track_graph(epoch_key, ANIMALS)
 
     return {
         'position_info': position_info,
@@ -335,7 +321,7 @@ def _get_linear_position_hmm(
         position_to_linearize=['tailBase_x', 'tailBase_y'],
         position_sampling_frequency=125):
     animal, day, epoch = epoch_key
-    track_graph, center_well_id = make_track_graph(epoch_key, animals)
+    track_graph = make_track_graph(epoch_key, animals)
     position = position_df.loc[:, position_to_linearize].values
     track_segment_id = classify_track_segments(
         track_graph, position,
@@ -345,7 +331,7 @@ def _get_linear_position_hmm(
     (position_df['linear_distance'],
      position_df['projected_x_position'],
      position_df['projected_y_position']) = calculate_linear_distance(
-        track_graph, track_segment_id, center_well_id, position)
+        track_graph, track_segment_id, 0, position)
     position_df['track_segment_id'] = track_segment_id
     SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
                               1.0: 'Left Arm',
@@ -366,7 +352,7 @@ def _get_linear_position_hmm(
         position_df = pd.concat((position_df, segments_df), axis=1)
         position_df['linear_position'] = _calulcate_linear_position(
             position_df.linear_distance.values,
-            position_df.track_segment_id.values, track_graph, center_well_id,
+            position_df.track_segment_id.values, track_graph, 0,
             edge_order=edge_order, edge_spacing=edge_spacing)
         position_df['is_correct'] = position_df.is_correct.fillna(False)
     except TypeError:
