@@ -8,11 +8,7 @@ from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          get_trial_time, make_neuron_dataframe,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
-from loren_frank_data_processing.position import (_calulcate_linear_position,
-                                                  calculate_linear_velocity,
-                                                  get_well_locations)
-from loren_frank_data_processing.track_segment_classification import (
-    calculate_linear_distance, classify_track_segments)
+from loren_frank_data_processing.position import get_well_locations
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
@@ -24,6 +20,7 @@ from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
+from track_linearization import get_linearized_position
 from track_linearization import make_track_graph as _make_track_graph
 
 logger = getLogger(__name__)
@@ -325,17 +322,16 @@ def _get_linear_position_hmm(
         position_sampling_frequency=125):
     animal, day, epoch = epoch_key
     track_graph = make_track_graph(epoch_key, animals)
-    position = position_df.loc[:, position_to_linearize].values
-    track_segment_id = classify_track_segments(
-        track_graph, position,
-        route_euclidean_distance_scaling=route_euclidean_distance_scaling,
-        sensor_std_dev=sensor_std_dev,
-        diagonal_bias=diagonal_bias)
-    (position_df['linear_distance'],
-     position_df['projected_x_position'],
-     position_df['projected_y_position']) = calculate_linear_distance(
-        track_graph, track_segment_id, 0, position)
-    position_df['track_segment_id'] = track_segment_id
+    position = np.asarray(position_df.loc[:, position_to_linearize])
+    linearized_position_df = get_linearized_position(
+        position=position,
+        track_graph=track_graph,
+        edge_order=edge_order,
+        edge_spacing=edge_spacing,
+    )
+    position_df = pd.concat(
+        (position_df,
+         linearized_position_df.set_index(position_df.index)), axis=1)
     SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
                               1.0: 'Left Arm',
                               2.0: 'Right Arm',
@@ -344,26 +340,15 @@ def _get_linear_position_hmm(
     position_df = position_df.assign(
         arm_name=lambda df: df.track_segment_id.map(SEGMENT_ID_TO_ARM_NAME)
     )
-    try:
-        segments_df, labeled_segments = get_segments_df(
-            epoch_key, animals, position_df, max_distance_from_well,
-            min_distance_traveled)
+    segments_df, labeled_segments = get_segments_df(
+        epoch_key, animals, position_df, max_distance_from_well,
+        min_distance_traveled)
 
-        segments_df = pd.merge(
-            labeled_segments, segments_df, right_index=True,
-            left_on='labeled_segments', how='outer')
-        position_df = pd.concat((position_df, segments_df), axis=1)
-        position_df['linear_position'] = _calulcate_linear_position(
-            position_df.linear_distance.values,
-            position_df.track_segment_id.values, track_graph, 0,
-            edge_order=edge_order, edge_spacing=edge_spacing)
-        position_df['is_correct'] = position_df.is_correct.fillna(False)
-    except TypeError:
-        position_df['linear_position'] = position_df['linear_distance'].copy()
-    position_df['linear_velocity'] = calculate_linear_velocity(
-        position_df.linear_distance, smooth_duration=0.500,
-        sampling_frequency=position_sampling_frequency)
-    position_df['linear_speed'] = np.abs(position_df.linear_velocity)
+    segments_df = pd.merge(
+        labeled_segments, segments_df, right_index=True,
+        left_on='labeled_segments', how='outer')
+    position_df = pd.concat((position_df, segments_df), axis=1)
+    position_df['is_correct'] = position_df.is_correct.fillna(False)
 
     return position_df
 
