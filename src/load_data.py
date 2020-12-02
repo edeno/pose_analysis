@@ -45,10 +45,9 @@ def get_track_segments(epoch_key, animals):
     linearcoord = loadmat(coordinate_path, squeeze_me=True)['coords']
     track_segments = [np.stack(((arm[:-1, :, 0], arm[1:, :, 0])), axis=1)
                       for arm in linearcoord]
-    center_well_position = track_segments[0][0][0]
     track_segments = np.concatenate(track_segments)
     _, unique_ind = np.unique(track_segments, return_index=True, axis=0)
-    return track_segments[np.sort(unique_ind)], center_well_position
+    return track_segments[np.sort(unique_ind)]
 
 
 def make_track_graph(epoch_key, animals, convert_to_pixels=False):
@@ -62,10 +61,9 @@ def make_track_graph(epoch_key, animals, convert_to_pixels=False):
     Returns
     -------
     track_graph : networkx Graph
-    center_well_id : int
 
     '''
-    track_segments, center_well_position = get_track_segments(
+    track_segments = get_track_segments(
         epoch_key, animals)
     nodes = track_segments.copy().reshape((-1, 2))
     _, unique_ind = np.unique(nodes, return_index=True, axis=0)
