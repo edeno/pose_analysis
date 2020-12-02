@@ -1,3 +1,4 @@
+import os
 from logging import getLogger
 
 import numpy as np
@@ -28,7 +29,7 @@ from track_linearization import make_track_graph as _make_track_graph
 logger = getLogger(__name__)
 
 
-def get_track_segments():
+def get_track_segments(epoch_key, animals):
     '''
 
     Parameters
@@ -42,8 +43,9 @@ def get_track_segments():
     center_well_position : ndarray, shape (n_space,)
 
     '''
-    linearcoord = loadmat(
-        '../Raw-Data/jaq/wTrack_coordinates.mat', squeeze_me=True)['coords']
+    coordinate_path = os.path.join(animals[epoch_key[0]].directory,
+                                   'wTrack_coordinates.mat')
+    linearcoord = loadmat(coordinate_path, squeeze_me=True)['coords']
     track_segments = [np.stack(((arm[:-1, :, 0], arm[1:, :, 0])), axis=1)
                       for arm in linearcoord]
     center_well_position = track_segments[0][0][0]
@@ -66,7 +68,8 @@ def make_track_graph(epoch_key, animals, convert_to_pixels=False):
     center_well_id : int
 
     '''
-    track_segments, center_well_position = get_track_segments()
+    track_segments, center_well_position = get_track_segments(
+        epoch_key, animals)
     nodes = track_segments.copy().reshape((-1, 2))
     _, unique_ind = np.unique(nodes, return_index=True, axis=0)
     nodes = nodes[np.sort(unique_ind)]
