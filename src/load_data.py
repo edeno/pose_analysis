@@ -115,7 +115,7 @@ def get_ripple_consensus_trace(ripple_filtered_lfps, sampling_frequency):
     return np.sqrt(ripple_consensus_trace)
 
 
-def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
+def get_adhoc_ripple(epoch_key, tetrode_info, position_time, position_to_linearize):
     LFP_SAMPLING_FREQUENCY = 1500
 
     # Get speed in terms of the LFP time
@@ -129,7 +129,8 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
                    .interpolate(method='linear')
                    .reindex(index=time)
                    )
-    speed = position_df['tailBase_vel']
+    speed_feature = position_to_linearize[0].split('_')[0]
+    speed = position_df[f'{speed_feature}_vel']
 
     # Load LFPs
     tetrode_keys = tetrode_info.loc[tetrode_info.area.isin(
@@ -192,7 +193,7 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time):
         is_ripple=is_ripple)
 
 
-def get_adhoc_multiunit(position_info, tetrode_keys, time_function):
+def get_adhoc_multiunit(position_info, tetrode_keys, time_function, position_to_linearize):
     time = position_info.index
     multiunits = get_all_multiunit_indicators(
         tetrode_keys, ANIMALS, time_function)
@@ -207,9 +208,12 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function):
         lambda df: df / df.mean())
     multiunit_rate_zscore = np.log(multiunit_firing_rate).transform(
         lambda df: (df - df.mean()) / df.std())
+    
+    speed_feature = position_to_linearize[0].split('_')[0]
+    speed = np.asarray(position_info[f'{speed_feature}_vel'])
 
     multiunit_high_synchrony_times = multiunit_HSE_detector(
-        time, multiunit_spikes, position_info.tailBase_vel.values,
+        time, multiunit_spikes, speed,
         SAMPLING_FREQUENCY,
         minimum_duration=np.timedelta64(15, 'ms'), zscore_threshold=2.0,
         close_event_threshold=np.timedelta64(0, 'ms'))
@@ -255,7 +259,7 @@ def load_data(epoch_key,
         return position_info.index
 
     adhoc_multiunit = get_adhoc_multiunit(
-        position_info, tetrode_keys, _time_function)
+        position_info, tetrode_keys, _time_function, position_to_linearize)
 
     logger.info('Loading spikes...')
     time = position_info.index
@@ -266,7 +270,7 @@ def load_data(epoch_key,
         neuron_info.index, ANIMALS, _time_function).reindex(time)
 
     logger.info('Finding ripple times...')
-    adhoc_ripple = get_adhoc_ripple(epoch_key, tetrode_info, time)
+    adhoc_ripple = get_adhoc_ripple(epoch_key, tetrode_info, time, position_to_linearize)
 
     track_graph = make_track_graph(epoch_key, ANIMALS)
 
