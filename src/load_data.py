@@ -267,7 +267,7 @@ def load_data(epoch_key,
         neuron_info = neuron_info.loc[neuron_info.accepted.astype(bool)]
         spikes = get_all_spike_indicators(
             neuron_info.index, ANIMALS, _time_function).reindex(time)
-    except KeyError:
+    except ValueError:
         neuron_info = None
         spikes = None
 
