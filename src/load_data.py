@@ -206,7 +206,7 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function, position_to_
         lambda df: df / df.mean())
     multiunit_rate_zscore = np.log(multiunit_firing_rate).transform(
         lambda df: (df - df.mean()) / df.std())
-    
+
     speed_feature = position_to_linearize[0].split('_')[0]
     speed = np.asarray(position_info[f'{speed_feature}_vel'])
 
@@ -261,14 +261,19 @@ def load_data(epoch_key,
 
     logger.info('Loading spikes...')
     time = position_info.index
-    neuron_info = make_neuron_dataframe(ANIMALS).xs(
-        epoch_key, drop_level=False)
-    neuron_info = neuron_info.loc[neuron_info.accepted.astype(bool)]
-    spikes = get_all_spike_indicators(
-        neuron_info.index, ANIMALS, _time_function).reindex(time)
+    try:
+        neuron_info = make_neuron_dataframe(
+            ANIMALS, exclude_animals=['Monty']).xs(epoch_key, drop_level=False)
+        neuron_info = neuron_info.loc[neuron_info.accepted.astype(bool)]
+        spikes = get_all_spike_indicators(
+            neuron_info.index, ANIMALS, _time_function).reindex(time)
+    except KeyError:
+        neuron_info = None
+        spikes = None
 
     logger.info('Finding ripple times...')
-    adhoc_ripple = get_adhoc_ripple(epoch_key, tetrode_info, time, position_to_linearize)
+    adhoc_ripple = get_adhoc_ripple(
+        epoch_key, tetrode_info, time, position_to_linearize)
 
     track_graph = make_track_graph(epoch_key, ANIMALS)
 
