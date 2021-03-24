@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          get_all_spike_indicators, get_LFPs,
-                                         get_trial_time, make_neuron_dataframe,
+                                         get_trial_time, make_epochs_dataframe,
+                                         make_neuron_dataframe,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
 from loren_frank_data_processing.position import get_well_locations
@@ -40,8 +41,13 @@ def get_track_segments(epoch_key, animals):
     center_well_position : ndarray, shape (n_space,)
 
     '''
-    coordinate_path = os.path.join(animals[epoch_key[0]].directory,
-                                   'wTrack_coordinates.mat')
+    environment = make_epochs_dataframe(animals).loc[epoch_key].environment
+    ENVIRONMENTS = {'lineartrack': 'linearTrack',
+                    'wtrack': 'wTrack'}
+
+    coordinate_path = os.path.join(
+        animals[epoch_key[0]].directory,
+        f'{ENVIRONMENTS[environment]}_coordinates.mat')
     linearcoord = loadmat(coordinate_path, squeeze_me=True)['coords']
     track_segments = [np.stack(((arm[:-1, :, 0], arm[1:, :, 0])), axis=1)
                       for arm in linearcoord]
@@ -63,8 +69,7 @@ def make_track_graph(epoch_key, animals, convert_to_pixels=False):
     track_graph : networkx Graph
 
     '''
-    track_segments = get_track_segments(
-        epoch_key, animals)
+    track_segments = get_track_segments(epoch_key, animals)
     nodes = track_segments.copy().reshape((-1, 2))
     _, unique_ind = np.unique(nodes, return_index=True, axis=0)
     nodes = nodes[np.sort(unique_ind)]
