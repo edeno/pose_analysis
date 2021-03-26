@@ -48,7 +48,7 @@ def get_track_segments(epoch_key, animals):
     coordinate_path = os.path.join(
         animals[epoch_key[0]].directory,
         f'{ENVIRONMENTS[environment]}_coordinates.mat')
-    linearcoord = loadmat(coordinate_path, squeeze_me=True)['coords']
+    linearcoord = loadmat(coordinate_path)['coords'][0]
     track_segments = [np.stack(((arm[:-1, :, 0], arm[1:, :, 0])), axis=1)
                       for arm in linearcoord]
     track_segments = np.concatenate(track_segments)
