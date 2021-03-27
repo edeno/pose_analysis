@@ -19,8 +19,9 @@ from ripple_detection.core import gaussian_smooth, get_envelope
 from scipy.io import loadmat
 from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
-from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
-                            SAMPLING_FREQUENCY)
+from src.parameters import (ANIMALS, LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING,
+                            SAMPLING_FREQUENCY, WTRACK_EDGE_ORDER,
+                            WTRACK_EDGE_SPACING)
 from track_linearization import get_linearized_position
 from track_linearization import make_track_graph as _make_track_graph
 
@@ -118,7 +119,8 @@ def get_ripple_consensus_trace(ripple_filtered_lfps, sampling_frequency):
     return np.sqrt(ripple_consensus_trace)
 
 
-def get_adhoc_ripple(epoch_key, tetrode_info, position_time, position_to_linearize):
+def get_adhoc_ripple(epoch_key, tetrode_info, position_time,
+                     position_to_linearize):
     LFP_SAMPLING_FREQUENCY = 1500
 
     # Get speed in terms of the LFP time
@@ -240,16 +242,23 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function, position_to_
 
 
 def load_data(epoch_key,
-              position_to_linearize=['tailBase_x', 'tailBase_y'],
+              position_to_linearize=['nose_x', 'nose_y'],
               max_distance_from_well=30,
               min_distance_traveled=50,
               ):
     logger.info('Loading position info...')
+    environment = make_epochs_dataframe(ANIMALS).loc[epoch_key].environment
+    if environment == "lineartrack":
+        edge_order, edge_spacing = LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING
+    elif environment == "wtrack":
+        edge_order, edge_spacing = WTRACK_EDGE_ORDER, WTRACK_EDGE_SPACING
     position_info = get_interpolated_position_info(
         epoch_key,
         position_to_linearize=position_to_linearize,
         max_distance_from_well=max_distance_from_well,
         min_distance_traveled=min_distance_traveled,
+        edge_order=edge_order,
+        edge_spacing=edge_spacing,
     ).dropna(subset=["linear_position"])
     tetrode_info = make_tetrode_dataframe(
         ANIMALS, epoch_key=epoch_key)
@@ -308,7 +317,7 @@ def _get_pos_dataframe(epoch_key, animals):
 
 def get_segments_df(epoch_key, animals, position_df, max_distance_from_well=30,
                     min_distance_traveled=50,
-                    position_to_linearize=['tailBase_x', 'tailBase_y']):
+                    position_to_linearize=['nose_x', 'nose_y']):
     well_locations = get_well_locations(epoch_key, animals)
     position = position_df.loc[:, position_to_linearize].values
     segments_df, labeled_segments = segment_path(
@@ -329,8 +338,9 @@ def _get_linear_position_hmm(
         min_distance_traveled=50,
         sensor_std_dev=5,
         diagonal_bias=0.5,
-        edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
-        position_to_linearize=['tailBase_x', 'tailBase_y'],
+        edge_order=WTRACK_EDGE_ORDER,
+        edge_spacing=WTRACK_EDGE_SPACING,
+        position_to_linearize=['nose_x', 'nose_y'],
         position_sampling_frequency=125):
     animal, day, epoch = epoch_key
     track_graph = make_track_graph(epoch_key, animals)
@@ -366,10 +376,11 @@ def _get_linear_position_hmm(
 
 
 def get_position_info(
-    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
+    epoch_key, position_to_linearize=['nose_x', 'nose_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         skip_linearization=False, route_euclidean_distance_scaling=1E-1,
         sensor_std_dev=5, diagonal_bias=0.5, position_sampling_frequency=125,
+        edge_order=WTRACK_EDGE_ORDER, edge_spacing=WTRACK_EDGE_SPACING
 ):
     position_df = _get_pos_dataframe(epoch_key, ANIMALS)
 
@@ -378,7 +389,7 @@ def get_position_info(
             epoch_key, ANIMALS, position_df,
             max_distance_from_well, route_euclidean_distance_scaling,
             min_distance_traveled, sensor_std_dev, diagonal_bias,
-            edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
+            edge_order=edge_order, edge_spacing=edge_spacing,
             position_to_linearize=position_to_linearize,
             position_sampling_frequency=position_sampling_frequency)
 
@@ -390,10 +401,11 @@ def get_position_info(
 
 
 def get_interpolated_position_info(
-    epoch_key, position_to_linearize=['tailBase_x', 'tailBase_y'],
+    epoch_key, position_to_linearize=['nose_x', 'nose_y'],
         max_distance_from_well=30, min_distance_traveled=50,
         route_euclidean_distance_scaling=1E-1,
-        sensor_std_dev=5, diagonal_bias=1E-1):
+        sensor_std_dev=5, diagonal_bias=1E-1, edge_order=WTRACK_EDGE_ORDER,
+        edge_spacing=WTRACK_EDGE_SPACING):
     position_info = get_position_info(
         epoch_key, skip_linearization=True)
     position_info = position_info.resample('2ms').mean().interpolate('linear')
@@ -402,7 +414,7 @@ def get_interpolated_position_info(
         epoch_key, ANIMALS, position_info,
         max_distance_from_well, route_euclidean_distance_scaling,
         min_distance_traveled, sensor_std_dev, diagonal_bias,
-        edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING,
+        edge_order=edge_order, edge_spacing=edge_spacing,
         position_to_linearize=position_to_linearize,
         position_sampling_frequency=500)
 

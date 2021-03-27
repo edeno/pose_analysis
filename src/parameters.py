@@ -17,8 +17,11 @@ ANIMALS = {
     'Roqui': Animal(directory=join(RAW_DATA_DIR, 'Roqui'), short_name='Roqui'),
 }
 
-EDGE_ORDER = [(0, 1), (1, 2), (2, 3), (1, 4), (4, 5)]
-EDGE_SPACING = [15, 0, 15, 0]
+WTRACK_EDGE_ORDER = [(0, 1), (1, 2), (2, 3), (1, 4), (4, 5)]
+WTRACK_EDGE_SPACING = [15, 0, 15, 0]
+
+LINEAR_EDGE_ORDER = [(0, 1)]
+LINEAR_EDGE_SPACING = 0
 
 detector_parameters = {
     'movement_var': 6.0,
