@@ -355,23 +355,26 @@ def _get_linear_position_hmm(
     position_df = pd.concat(
         (position_df,
          linearized_position_df.set_index(position_df.index)), axis=1)
-    SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
-                              1.0: 'Left Arm',
-                              2.0: 'Right Arm',
-                              3.0: 'Left Arm',
-                              4.0: 'Right Arm'}
-    position_df = position_df.assign(
-        arm_name=lambda df: df.track_segment_id.map(SEGMENT_ID_TO_ARM_NAME)
-    )
-    segments_df, labeled_segments = get_segments_df(
-        epoch_key, animals, position_df, max_distance_from_well,
-        min_distance_traveled)
+    try:
+        SEGMENT_ID_TO_ARM_NAME = {0.0: 'Center Arm',
+                                  1.0: 'Left Arm',
+                                  2.0: 'Right Arm',
+                                  3.0: 'Left Arm',
+                                  4.0: 'Right Arm'}
+        position_df = position_df.assign(
+            arm_name=lambda df: df.track_segment_id.map(SEGMENT_ID_TO_ARM_NAME)
+        )
+        segments_df, labeled_segments = get_segments_df(
+            epoch_key, animals, position_df, max_distance_from_well,
+            min_distance_traveled)
 
-    segments_df = pd.merge(
-        labeled_segments, segments_df, right_index=True,
-        left_on='labeled_segments', how='outer')
-    position_df = pd.concat((position_df, segments_df), axis=1)
-    position_df['is_correct'] = position_df.is_correct.fillna(False)
+        segments_df = pd.merge(
+            labeled_segments, segments_df, right_index=True,
+            left_on='labeled_segments', how='outer')
+        position_df = pd.concat((position_df, segments_df), axis=1)
+        position_df['is_correct'] = position_df.is_correct.fillna(False)
+    except ValueError:
+        pass
 
     return position_df
 
