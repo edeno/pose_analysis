@@ -277,7 +277,8 @@ def load_data(epoch_key,
     time = position_info.index
     try:
         neuron_info = make_neuron_dataframe(
-            ANIMALS, exclude_animals=['Monty']).xs(epoch_key, drop_level=False)
+            ANIMALS, exclude_animals=['Monty', 'Peanut']).xs(
+                epoch_key, drop_level=False)
         neuron_info = neuron_info.loc[neuron_info.accepted.astype(bool)]
         spikes = get_all_spike_indicators(
             neuron_info.index, ANIMALS, _time_function).reindex(time)
