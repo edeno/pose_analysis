@@ -42,7 +42,8 @@ def get_track_segments(epoch_key, animals):
     center_well_position : ndarray, shape (n_space,)
 
     '''
-    environment = make_epochs_dataframe(animals).loc[epoch_key].environment
+    environment = np.asarray(
+        make_epochs_dataframe(animals).loc[epoch_key].environment)[0]
     ENVIRONMENTS = {'lineartrack': 'linearTrack',
                     'wtrack': 'wTrack'}
 
