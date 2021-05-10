@@ -247,7 +247,8 @@ def load_data(epoch_key,
               min_distance_traveled=50,
               ):
     logger.info('Loading position info...')
-    environment = make_epochs_dataframe(ANIMALS).loc[epoch_key].environment
+    environment = np.asarray(
+        make_epochs_dataframe(ANIMALS).loc[epoch_key].environment)[0]
     if environment == "lineartrack":
         edge_order, edge_spacing = LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING
     elif environment == "wtrack":
