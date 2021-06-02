@@ -1,9 +1,13 @@
+import copy
+import os
+
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import xarray as xr
-import copy
+from src.parameters import FIGURE_DIR, SAMPLING_FREQUENCY
 
 
 def plot_classifier_time_slice(
@@ -528,4 +532,175 @@ def plot_place_fields(classifier, sampling_frequency=500):
         ax.spines["bottom"].set_visible(False)
 
     axes[-1].get_yaxis().set_visible(False)
-    axes[-1].spines["left"].set_visible(False)
+    axes[-1].spines["left"].set_visible(False)    axes[-1].spines["left"].set_visible(False)
+
+def make_2D_classifier_movie(
+    classifier,
+    results,
+    ripple_number,
+    data,
+    epoch_key,
+    frame_rate=SAMPLING_FREQUENCY // 30,
+    movie_name=None,
+):
+
+    STATE_COLORS = {
+        "Fragmented": "#ff6944",
+        "Continuous": "#521b65",
+    }
+
+    MILLISECONDS_TO_SECONDS = 1000
+
+    if movie_name is None:
+        movie_name = (
+            f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
+            f"_{ripple_number:04d}.mp4"
+        )
+        movie_name = os.path.join(FIGURE_DIR, movie_name)
+    posterior = results.acausal_posterior.dropna("time", how="all")
+    probabilities = posterior.sum(["x_position", "y_position"])
+    map_position_ind = posterior.sum(
+        "state").argmax(["x_position", "y_position"])
+    map_position = np.stack(
+        (
+            posterior.x_position[map_position_ind["x_position"]],
+            posterior.y_position[map_position_ind["y_position"]],
+        ),
+        axis=1,
+    )
+    time_slice = slice(
+        *data["ripple_times"].loc[ripple_number, ["start_time", "end_time"]]
+    )
+    position = (
+        data["position_info"]
+        .loc[time_slice, ["projected_x_position", "projected_y_position"]]
+        .values
+    )
+    # Set up formatting for the movie files
+    Writer = animation.writers["ffmpeg"]
+    writer = Writer(fps=frame_rate, metadata=dict(artist="Me"), bitrate=1800)
+
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(12, 8),
+        gridspec_kw={"height_ratios": [5, 2]},
+        constrained_layout=False,
+    )
+
+    # Plot 1
+    axes[0, 0].set_facecolor("black")
+    position_2d = data["position_info"].loc[:, ["x_position", "y_position"]]
+    axes[0, 0].plot(
+        position_2d.values[:, 0],
+        position_2d.values[:, 1],
+        color="lightgrey",
+        alpha=0.4,
+        zorder=1,
+    )
+
+    axes[0, 0].set_xlim(
+        data["position_info"].x_position.min() - 1,
+        data["position_info"].x_position.max() + 1,
+    )
+    axes[0, 0].set_ylim(
+        data["position_info"].y_position.min() + 1,
+        data["position_info"].y_position.max() + 1,
+    )
+
+    pcmesh = (
+        posterior.isel(time=0)
+        .sum("state")
+        .plot(x="x_position", y="y_position", ax=axes[0, 0],
+                add_colorbar=False)
+    )
+
+    axes[0, 0].set_xlabel("X-Position [cm]", fontsize=18)
+    axes[0, 0].set_ylabel("Y-Position [cm]", fontsize=18)
+    axes[0, 0].tick_params(labelsize=16)
+    axes[0, 0].set_title("Decoded Position", fontsize=20)
+
+    position = np.asarray(position)
+    position_dot = axes[0, 0].scatter(
+        [], [], s=100, zorder=102, color="magenta", label="Actual"
+    )
+    (position_line,) = axes[0, 0].plot([], [], linewidth=3, color="magenta")
+
+    map_dot = axes[0, 0].scatter(
+        [], [], s=100, zorder=102, color="lime", label="Decoded"
+    )
+    (map_line,) = axes[0, 0].plot([], [], linewidth=3, color="lime")
+    axes[1, 0].legend(
+        (position_dot, map_dot),
+        ("Actual Position", "Decoded Position"),
+        fontsize=16,
+        loc="center",
+        frameon=True,
+    )
+    axes[1, 0].axis("off")
+
+    # Plot 2
+    time = MILLISECONDS_TO_SECONDS * \
+        probabilities.time.values / np.timedelta64(1, "s")
+    time -= (
+        MILLISECONDS_TO_SECONDS *
+        probabilities.time.values[0] / np.timedelta64(1, "s")
+    )
+    (cont_line,) = axes[0, 1].plot(
+        [], [], STATE_COLORS["Continuous"], linewidth=3, clip_on=False
+    )
+    (frag_line,) = axes[0, 1].plot(
+        [], [], STATE_COLORS["Fragmented"], linewidth=3, clip_on=False
+    )
+    axes[0, 1].set_ylim((0, 1))
+    axes[0, 1].set_xlim((time.min(), time.max()))
+    axes[0, 1].set_xlabel("Time [ms]", fontsize=18)
+    axes[0, 1].set_ylabel("Probability", fontsize=18)
+    axes[0, 1].tick_params(labelsize=16)
+    axes[0, 1].set_title("Probability of Dynamic", fontsize=20)
+
+    axes[1, 1].legend(
+        (cont_line, frag_line),
+        ("Continuous", "Fragmented"),
+        fontsize=16,
+        loc="center",
+        frameon=True,
+    )
+    axes[1, 1].axis("off")
+
+    sns.despine()
+    n_frames = map_position.shape[0]
+
+    def _update_plot(time_ind):
+        start_ind = max(0, time_ind - 5)
+        time_slice = slice(start_ind, time_ind)
+        pcmesh.set_array(
+            posterior.isel(time=time_ind).sum("state").values.ravel(order="F")
+        )
+        position_dot.set_offsets(position[time_ind])
+        position_line.set_data(
+            position[time_slice, 0], position[time_slice, 1])
+
+        map_dot.set_offsets(map_position[time_ind])
+        map_line.set_data(
+            map_position[time_slice, 0], map_position[time_slice, 1])
+
+        cont_line.set_data(
+            time[:time_ind], probabilities.sel(
+                state="Continuous").values[:time_ind],
+        )
+        frag_line.set_data(
+            time[:time_ind], probabilities.sel(
+                state="Fragmented").values[:time_ind],
+        )
+
+        return position_dot, map_dot
+
+    movie = animation.FuncAnimation(
+        fig, _update_plot, frames=n_frames, interval=1000 / frame_rate,
+        blit=True
+    )
+    if movie_name is not None:
+        movie.save(movie_name, writer=writer)
+
+    return fig, movie
