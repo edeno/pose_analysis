@@ -582,12 +582,12 @@ def make_2D_classifier_movie(
         ),
         axis=1,
     )
-
-    position = (
+    position = np.asarray(
         data["position_info"]
         .loc[time_slice, ["projected_x_position", "projected_y_position"]]
-        .values
     )
+    position_2d = np.asarray(data["position_info"].loc[:, position_name])
+
     # Set up formatting for the movie files
     Writer = animation.writers["ffmpeg"]
     writer = Writer(fps=frame_rate, metadata=dict(artist="Me"), bitrate=1800)
@@ -602,10 +602,9 @@ def make_2D_classifier_movie(
 
     # Plot 1
     axes[0, 0].set_facecolor("black")
-    position_2d = data["position_info"].loc[:, position_name]
     axes[0, 0].plot(
-        position_2d.values[:, 0],
-        position_2d.values[:, 1],
+        position_2d[:, 0],
+        position_2d[:, 1],
         color="lightgrey",
         alpha=0.4,
         zorder=1,
