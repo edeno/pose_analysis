@@ -1,5 +1,4 @@
 import copy
-import os
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -7,7 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import xarray as xr
-from src.parameters import FIGURE_DIR, SAMPLING_FREQUENCY
+from src.parameters import SAMPLING_FREQUENCY
 
 
 def plot_classifier_time_slice(
@@ -562,7 +561,7 @@ def make_2D_classifier_movie(
     data,
     epoch_key,
     frame_rate=SAMPLING_FREQUENCY // 30,
-    movie_name=None,
+    movie_name="2D_classifier_movie",
 ):
 
     STATE_COLORS = {
@@ -572,12 +571,6 @@ def make_2D_classifier_movie(
 
     MILLISECONDS_TO_SECONDS = 1000
 
-    if movie_name is None:
-        movie_name = (
-            f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
-            f"_{ripple_number:04d}.mp4"
-        )
-        movie_name = os.path.join(FIGURE_DIR, movie_name)
     posterior = results.acausal_posterior.dropna("time", how="all")
     probabilities = posterior.sum(["x_position", "y_position"])
     map_position_ind = posterior.sum(
