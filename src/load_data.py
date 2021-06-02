@@ -200,7 +200,8 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time,
         is_ripple=is_ripple)
 
 
-def get_adhoc_multiunit(position_info, tetrode_keys, time_function, position_to_linearize):
+def get_adhoc_multiunit(position_info, tetrode_keys, time_function,
+                        position_to_linearize):
     time = position_info.index
     multiunits = get_all_multiunit_indicators(
         tetrode_keys, ANIMALS, time_function)
@@ -296,10 +297,10 @@ def load_data(epoch_key,
         epoch_key, tetrode_info, time, position_to_linearize)
 
     track_graph = make_track_graph(epoch_key, ANIMALS)
-    
+
     dio = get_DIO(epoch_key, ANIMALS)
-    dio_indicator = get_DIO_indicator(epoch_key, ANIMALS, time_function=_time_function)
-    
+    dio_indicator = get_DIO_indicator(
+        epoch_key, ANIMALS, time_function=_time_function)
 
     return {
         'position_info': position_info,
