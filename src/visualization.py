@@ -559,6 +559,7 @@ def make_2D_classifier_movie(
     results,
     time_slice,
     data,
+    position_name=['nose_x', 'nose_y'],
     frame_rate=SAMPLING_FREQUENCY // 30,
     movie_name="2D_classifier_movie",
 ):
@@ -601,7 +602,7 @@ def make_2D_classifier_movie(
 
     # Plot 1
     axes[0, 0].set_facecolor("black")
-    position_2d = data["position_info"].loc[:, ["x_position", "y_position"]]
+    position_2d = data["position_info"].loc[:, position_name]
     axes[0, 0].plot(
         position_2d.values[:, 0],
         position_2d.values[:, 1],
@@ -611,12 +612,12 @@ def make_2D_classifier_movie(
     )
 
     axes[0, 0].set_xlim(
-        data["position_info"].x_position.min() - 1,
-        data["position_info"].x_position.max() + 1,
+        data["position_info"][position_name[0]].min() - 1,
+        data["position_info"][position_name[0]].max() + 1,
     )
     axes[0, 0].set_ylim(
-        data["position_info"].y_position.min() + 1,
-        data["position_info"].y_position.max() + 1,
+        data["position_info"][position_name[1]].min() + 1,
+        data["position_info"][position_name[1]].max() + 1,
     )
 
     pcmesh = (
