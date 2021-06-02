@@ -9,6 +9,7 @@ from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_neuron_dataframe,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
+from loren_frank_data_processing.DIO import get_DIO, get_DIO_indicator
 from loren_frank_data_processing.position import get_well_locations
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
@@ -254,6 +255,8 @@ def load_data(epoch_key,
         edge_order, edge_spacing = LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING
     elif environment == "wtrack":
         edge_order, edge_spacing = WTRACK_EDGE_ORDER, WTRACK_EDGE_SPACING
+    else:
+        edge_order, edge_spacing = None, None
     position_info = get_interpolated_position_info(
         epoch_key,
         position_to_linearize=position_to_linearize,
@@ -293,13 +296,21 @@ def load_data(epoch_key,
         epoch_key, tetrode_info, time, position_to_linearize)
 
     track_graph = make_track_graph(epoch_key, ANIMALS)
+    
+    dio = get_DIO(epoch_key, ANIMALS)
+    dio_indicator = get_DIO_indicator(epoch_key, ANIMALS, time_function=_time_function)
+    
 
     return {
         'position_info': position_info,
         'tetrode_info': tetrode_info,
         'neuron_info': neuron_info,
         'spikes': spikes,
+        'dio': dio,
+        'dio_indicator': dio_indicator,
         'track_graph': track_graph,
+        'edge_order': edge_order,
+        'edge_spacing': edge_spacing,
         **adhoc_ripple,
         **adhoc_multiunit,
     }
