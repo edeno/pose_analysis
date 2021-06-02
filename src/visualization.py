@@ -561,7 +561,7 @@ def make_2D_classifier_movie(
     data,
     position_name=['nose_x', 'nose_y'],
     frame_rate=SAMPLING_FREQUENCY // 30,
-    movie_name="2D_classifier_movie",
+    movie_name="2D_classifier_movie.mp4",
 ):
 
     STATE_COLORS = {
