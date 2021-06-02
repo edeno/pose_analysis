@@ -571,7 +571,7 @@ def make_2D_classifier_movie(
 
     MILLISECONDS_TO_SECONDS = 1000
 
-    posterior = results.acausal_posterior.dropna("time", how="all")
+    posterior = results.sel(time=time_slice).acausal_posterior
     probabilities = posterior.sum(["x_position", "y_position"])
     map_position_ind = posterior.sum(
         "state").argmax(["x_position", "y_position"])
