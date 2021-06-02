@@ -32,7 +32,7 @@ def plot_classifier_time_slice(
         constrained_layout=True,
         gridspec_kw={"height_ratios": [0.5, 3, 1, 1, 1, 1, 0.25]},
     )
-    
+
     # ax 0
     ripple_lfps = (
         data['ripple_lfps']
@@ -40,10 +40,11 @@ def plot_classifier_time_slice(
         .set_index(data['ripple_lfps'].index / np.timedelta64(1, "s"))
         .loc[slice(time_slice.values[0], time_slice.values[-1])])
     max_tetrode_ind = np.abs(data['ripple_filtered_lfps']).max().idxmax()
-    axes[0].plot(ripple_lfps.index, ripple_lfps.iloc[:, max_tetrode_ind], color='black')
+    axes[0].plot(ripple_lfps.index,
+                 ripple_lfps.iloc[:,
+                                  max_tetrode_ind], color='black')
     axes[0].axis("off")
-    
-    
+
     # ax 1
     (results[posterior_type]
      .sum('state')
@@ -77,18 +78,20 @@ def plot_classifier_time_slice(
     )
     if legend:
         axes[2].legend(handles=h, labels=probability.state.values.tolist(),
-                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1, fontsize=12)
+                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1,
+                       fontsize=12)
     axes[2].set_ylabel("Probability")
     axes[2].set_xlabel("")
-    
+
     # ax 3
     multiunit_spikes = pd.DataFrame(
         data['multiunit_spikes'],
         index=data['position_info'].index / np.timedelta64(1, "s")
     ).loc[time_slice]
-    
+
     spike_time_ind, tetrode_ind = np.nonzero(np.asarray(multiunit_spikes))
-    axes[3].scatter(multiunit_spikes.index[spike_time_ind], tetrode_ind, clip_on=False, s=1, color='black')
+    axes[3].scatter(multiunit_spikes.index[spike_time_ind],
+                    tetrode_ind, clip_on=False, s=1, color='black')
     axes[3].set_ylabel("Tetrodes")
 
     # ax 4
@@ -119,19 +122,22 @@ def plot_classifier_time_slice(
         alpha=0.5,
     )
     axes[5].set_ylabel("Speed \n[cm / s]")
-    
+
     # ax 6
     axes[6].eventplot(
-        data['dio'].index[data['dio'].loc[:, ['Din1', 'Din2', 'Din3']].sum(axis=1) > 0]
+        data['dio'].index[data['dio'].loc[:, [
+            'Din1', 'Din2', 'Din3']].sum(axis=1) > 0]
         / np.timedelta64(1, 's'), color='black')
     axes[6].eventplot(
-        data['dio'].index[data['dio'].loc[:, ['Dout4', 'Dout5', 'Dout6']].sum(axis=1) > 0]
+        data['dio'].index[data['dio'].loc[:, [
+            'Dout4', 'Dout5', 'Dout6']].sum(axis=1) > 0]
         / np.timedelta64(1, 's'), color='red')
     axes[6].set_yticklabels([])
     axes[6].set_ylabel("Beam\nBreak")
 
     axes[-1].set_xlabel("Time [s]")
     sns.despine()
+
 
 def plot_classifier_inbound_outbound_time_slice(
     time_slice,
@@ -194,14 +200,16 @@ def plot_classifier_inbound_outbound_time_slice(
                   .assign_coords({'state': 'Fragmented'}))
     probability = (results[posterior_type]
                    .sum('position')
-                   .drop_sel(state=['Inbound-Fragmented', 'Outbound-Fragmented']))
+                   .drop_sel(state=['Inbound-Fragmented',
+                                    'Outbound-Fragmented']))
     probability = xr.concat((probability, fragmented), dim='state')
     h = probability.sel(time=time_slice).plot(
         x="time", hue="state", ax=axes[1], add_legend=False, clip_on=False,
     )
     if legend:
         axes[1].legend(handles=h, labels=probability.state.values.tolist(),
-                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1, fontsize=12)
+                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1,
+                       fontsize=12)
     axes[1].set_ylabel("Probability")
     axes[1].set_xlabel("")
     axes[1].set_ylim((0, 1))
@@ -237,7 +245,8 @@ def plot_classifier_inbound_outbound_time_slice(
     axes[3].set_xlabel("Time [s]")
     axes[3].ticklabel_format(style='plain', axis='x')
     sns.despine()
-    
+
+
 def plot_local_non_local_time_slice(
     time_slice,
     detector,
@@ -323,16 +332,18 @@ def plot_local_non_local_time_slice(
     axes[3].set_xlabel("Time [s]")
     sns.despine()
 
-    
+
 def get_neuron_order(classifier):
     n_neurons = len(classifier.place_fields_.neuron)
     idx = classifier.place_fields_.argmax(dim=['encoding_group', 'position'])
-    idx = np.stack((idx['encoding_group'].values, idx['position'].values, np.arange(n_neurons)), axis=1)
+    idx = np.stack((idx['encoding_group'].values,
+                    idx['position'].values, np.arange(n_neurons)), axis=1)
     idx = idx[np.argsort(idx[:, 1])]
     idx = np.concatenate((idx[idx[:, 0] == 0],
                           idx[idx[:, 0] == 1]))
-    
-    return pd.DataFrame(idx, columns=['encoding_group', 'position_bin', 'neuron_ind'])
+
+    return pd.DataFrame(
+        idx, columns=['encoding_group', 'position_bin', 'neuron_ind'])
 
 
 def plot_classifier_spikes(
@@ -357,7 +368,7 @@ def plot_classifier_spikes(
         constrained_layout=True,
         gridspec_kw={"height_ratios": [0.5, 3, 1, 1, 1, 1, 0.25]},
     )
-    
+
     # ax 0
     ripple_lfps = (
         data['ripple_lfps']
@@ -365,7 +376,8 @@ def plot_classifier_spikes(
         .set_index(data['ripple_lfps'].index / np.timedelta64(1, "s"))
         .loc[slice(time_slice.values[0], time_slice.values[-1])])
     max_tetrode_ind = np.abs(data['ripple_filtered_lfps']).max().idxmax()
-    axes[0].plot(ripple_lfps.index, ripple_lfps.iloc[:, max_tetrode_ind], color='black')
+    axes[0].plot(ripple_lfps.index,
+                 ripple_lfps.iloc[:, max_tetrode_ind], color='black')
     axes[0].axis("off")
 
     # ax 1
@@ -408,7 +420,8 @@ def plot_classifier_spikes(
                       .assign_coords({'state': 'Fragmented'}))
         probability = (results[posterior_type]
                        .sum('position')
-                       .drop_sel(state=['Inbound-Fragmented', 'Outbound-Fragmented']))
+                       .drop_sel(state=['Inbound-Fragmented',
+                                        'Outbound-Fragmented']))
         probability = xr.concat((probability, fragmented), dim='state')
     except KeyError:
         probability = results[posterior_type].sum('position')
@@ -417,11 +430,12 @@ def plot_classifier_spikes(
     )
     if legend:
         axes[2].legend(handles=h, labels=probability.state.values.tolist(),
-                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1, fontsize=12)
+                       bbox_to_anchor=(1.10, 0.8), loc='upper right', ncol=1,
+                       fontsize=12)
     axes[2].set_ylabel("Probability")
     axes[2].set_xlabel("")
     axes[2].set_ylim((0, 1))
-    
+
     # ax 3
     neuron_order = get_neuron_order(classifier)
 
@@ -436,7 +450,7 @@ def plot_classifier_spikes(
     spike_time_ind, neuron_ind = np.nonzero(np.asarray(spikes.loc[time_slice]))
     spike_times = np.asarray(spikes.loc[time_slice].index)[spike_time_ind]
     encoding_group = neuron_order.encoding_group.values[neuron_ind]
-    
+
     for group in np.unique(encoding_group):
         axes[3].scatter(spike_times[encoding_group == group],
                         neuron_ind[encoding_group == group] + 1,
@@ -479,43 +493,49 @@ def plot_classifier_spikes(
         alpha=0.5,
     )
     axes[5].set_ylabel("Speed \n[cm / s]")
-    
+
     # ax 6
     axes[6].eventplot(
-        data['dio'].index[data['dio'].loc[:, ['Din1', 'Din2', 'Din3']].sum(axis=1) > 0]
+        data['dio'].index[data['dio'].loc[:, [
+            'Din1', 'Din2', 'Din3']].sum(axis=1) > 0]
         / np.timedelta64(1, 's'), color='black')
     axes[6].eventplot(
-        data['dio'].index[data['dio'].loc[:, ['Dout4', 'Dout5', 'Dout6']].sum(axis=1) > 0]
+        data['dio'].index[data['dio'].loc[:, [
+            'Dout4', 'Dout5', 'Dout6']].sum(axis=1) > 0]
         / np.timedelta64(1, 's'), color='red')
     axes[6].set_yticklabels([])
     axes[6].set_ylabel("Beam\nBreak")
-    
+
     axes[-1].set_xlabel("Time [s]")
     axes[-1].ticklabel_format(style='plain', axis='x')
-    
+
     sns.despine()
-    
-    
+
+
 def plot_place_fields(classifier, sampling_frequency=500):
     n_neurons = len(classifier.place_fields_.neuron)
 
     idx = classifier.place_fields_.argmax(dim=['encoding_group', 'position'])
-    idx = np.stack((idx['encoding_group'].values, idx['position'].values, np.arange(n_neurons)), axis=1)
+    idx = np.stack((idx['encoding_group'].values,
+                    idx['position'].values, np.arange(n_neurons)), axis=1)
     idx = idx[np.argsort(idx[:, 1])]
     idx = np.concatenate((idx[idx[:, 0] == 0],
                           idx[idx[:, 0] == 1]))
     sorted_neuron_idx = idx[:, 2]
 
-    fig, axes = plt.subplots(n_neurons, 1, sharex=True, figsize=(14, n_neurons / 8))
+    fig, axes = plt.subplots(n_neurons, 1, sharex=True,
+                             figsize=(14, n_neurons / 8))
 
     for neuron_ind, ax in zip(sorted_neuron_idx, axes.flat):
         place_field = (classifier
-         .place_fields_
-         .isel(neuron=neuron_ind)
-         .where(classifier.is_track_interior_) * sampling_frequency
-        )
+                       .place_fields_
+                       .isel(neuron=neuron_ind)
+                       .where(classifier.is_track_interior_) *
+                       sampling_frequency
+                       )
         for encoding_group in place_field.encoding_group:
-            ax.fill_between(place_field.position, place_field.sel(encoding_group=encoding_group), alpha=0.8)
+            ax.fill_between(place_field.position, place_field.sel(
+                encoding_group=encoding_group), alpha=0.8)
 
         ax.set_xlim((0, classifier.place_fields_.position[-1]))
         ax.set_xlabel('')
@@ -532,7 +552,8 @@ def plot_place_fields(classifier, sampling_frequency=500):
         ax.spines["bottom"].set_visible(False)
 
     axes[-1].get_yaxis().set_visible(False)
-    axes[-1].spines["left"].set_visible(False)    axes[-1].spines["left"].set_visible(False)
+    axes[-1].spines["left"].set_visible(False)
+
 
 def make_2D_classifier_movie(
     classifier,
