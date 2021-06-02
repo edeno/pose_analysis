@@ -557,9 +557,8 @@ def plot_place_fields(classifier, sampling_frequency=500):
 def make_2D_classifier_movie(
     classifier,
     results,
-    ripple_number,
+    time_slice,
     data,
-    epoch_key,
     frame_rate=SAMPLING_FREQUENCY // 30,
     movie_name="2D_classifier_movie",
 ):
@@ -582,9 +581,7 @@ def make_2D_classifier_movie(
         ),
         axis=1,
     )
-    time_slice = slice(
-        *data["ripple_times"].loc[ripple_number, ["start_time", "end_time"]]
-    )
+
     position = (
         data["position_info"]
         .loc[time_slice, ["projected_x_position", "projected_y_position"]]
