@@ -13,8 +13,11 @@ PROCESSED_DATA_DIR = join(ROOT_DIR, 'Processed-Data')
 FIGURE_DIR = join(ROOT_DIR, 'figures')
 
 ANIMALS = {
-    'Jaq': Animal(directory=join(RAW_DATA_DIR, 'Jaq'), short_name='Jaq'),
-    'Roqui': Animal(directory=join(RAW_DATA_DIR, 'Roqui'), short_name='Roqui'),
+    'Jaq': Animal(directory='/stelmo/abhilasha/animals/Jaq/filterframework', short_name='Jaq'),
+    'Roqui': Animal(directory='/stelmo/abhilasha/animals/Roqui/filterframework', short_name='Roqui'),
+    'Peanut': Animal(directory='/stelmo/abhilasha/animals/Peanut/filterframework', short_name='Peanut'),
+    'Lotus': Animal(directory='/stelmo/abhilasha/animals/Lotus/filterframework', short_name='Lotus'),
+    'Monty': Animal(directory='/stelmo/abhilasha/animals/Monty/filterframework', short_name='Monty'),
 }
 
 WTRACK_EDGE_ORDER = [(0, 1), (1, 2), (2, 3), (1, 4), (4, 5)]
