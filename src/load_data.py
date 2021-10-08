@@ -10,7 +10,6 @@ from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import get_data_structure
 from loren_frank_data_processing.DIO import get_DIO, get_DIO_indicator
-from loren_frank_data_processing.position import get_well_locations
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
@@ -57,6 +56,27 @@ def get_track_segments(epoch_key, animals):
     track_segments = np.concatenate(track_segments)
     _, unique_ind = np.unique(track_segments, return_index=True, axis=0)
     return track_segments[np.sort(unique_ind)]
+
+
+def get_well_locations(epoch_key, animals):
+    '''Retrieves the 2D coordinates for each well.
+    '''
+    environment = np.asarray(
+        make_epochs_dataframe(animals).loc[epoch_key].environment)[0]
+    ENVIRONMENTS = {'lineartrack': 'linearTrack',
+                    'wtrack': 'wTrack'}
+
+    coordinate_path = os.path.join(
+        animals[epoch_key[0]].directory,
+        f'{ENVIRONMENTS[environment]}_coordinates.mat')
+    linearcoord = loadmat(coordinate_path)['coords'][0]
+    well_locations = []
+    for arm in linearcoord:
+        well_locations.append(arm[0, :, 0])
+        well_locations.append(arm[-1, :, 0])
+    well_locations = np.stack(well_locations)
+    _, ind = np.unique(well_locations, axis=0, return_index=True)
+    return well_locations[np.sort(ind), :]
 
 
 def make_track_graph(epoch_key, animals, convert_to_pixels=False):
