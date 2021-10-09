@@ -1,3 +1,4 @@
+import itertools
 import os
 from logging import getLogger
 
@@ -457,3 +458,25 @@ def get_interpolated_position_info(
         position_sampling_frequency=500)
 
     return position_info
+
+
+def get_sleep_and_prev_run_epochs():
+
+    epoch_info = make_epochs_dataframe(ANIMALS)
+    sleep_epoch_keys = []
+    prev_run_epoch_keys = []
+
+    for _, df in epoch_info.groupby(["animal", "day"]):
+        is_w_track = np.asarray(df.iloc[:-1].environment.isin(["wtrack"]))
+
+        is_sleep_after_run = np.asarray(
+            (df.iloc[1:].type == "sleep") & is_w_track)
+        sleep_ind = np.nonzero(is_sleep_after_run)[0] + 1
+
+        sleep_epoch_keys.append(df.iloc[sleep_ind].index)
+        prev_run_epoch_keys.append(df.iloc[sleep_ind - 1].index)
+
+    sleep_epoch_keys = list(itertools.chain(*sleep_epoch_keys))
+    prev_run_epoch_keys = list(itertools.chain(*prev_run_epoch_keys))
+
+    return sleep_epoch_keys, prev_run_epoch_keys
