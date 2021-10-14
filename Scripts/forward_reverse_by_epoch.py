@@ -36,10 +36,12 @@ def setup_logging(epoch_key,
     logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
 
+    return logger
+
 
 def run_analysis(epoch_key, overwrite=False):
     print(epoch_key)
-    setup_logging(epoch_key)
+    logger = setup_logging(epoch_key)
     epoch_identifier = f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
     results_filename = os.path.join(
         PROCESSED_DATA_DIR,
@@ -136,11 +138,12 @@ def run_analysis(epoch_key, overwrite=False):
             logging.info('Done!\n')
         else:
             logging.info('File already processed. Skipping...\n')
-    except Exception as e:
+    except Exception:
         logging.exception("Something bad happened")
-        logging.shutdown()
 
-    logging.shutdown()
+    for handler in logger.handlers:
+        handler.close()
+        logger.removeHandler(handler)
 
 
 def main():
