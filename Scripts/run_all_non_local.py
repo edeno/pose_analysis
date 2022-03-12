@@ -25,7 +25,7 @@ def run_bash(epoch_key, log_directory, args):
                 f' --training_type {args.training_type}'
                 )
     if args.overwrite:
-        bash_cmd += '--overwrite'
+        bash_cmd += ' --overwrite'
 
     log_file = os.path.join(
         log_directory, f'{animal}_{day:02d}_{epoch:02d}.log')
