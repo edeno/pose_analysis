@@ -18,7 +18,7 @@ def setup_logging(epoch_key,
                   date_format='%d-%b-%y %H:%M:%S',
                   format='%(asctime)s %(message)s'):
     animal, day, epoch = epoch_key
-    log_filename = (f"{animal}_{day:02d}_{epoch:02d}"
+    log_filename = (f"logs/{animal}_{day:02d}_{epoch:02d}"
                     "_clusterless_forward_reverse.log")
 
     logger = logging.getLogger()
@@ -43,7 +43,7 @@ def run_analysis(epoch_key, overwrite=False):
     epoch_identifier = f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
     results_filename = os.path.join(
         PROCESSED_DATA_DIR,
-        f"{epoch_identifier}_clusterless_foward_reverse_results.nc"
+        f"{epoch_identifier}_clusterless_forward_reverse_results.nc"
     )
 
     try:
@@ -93,43 +93,33 @@ def run_analysis(epoch_key, overwrite=False):
                 'Inbound-Forward', 'Inbound-Reverse', 'Inbound-Fragmented',
                 'Outbound-Forward', 'Outbound-Reverse', 'Outbound-Fragmented']
 
-            cv = KFold()
-            results = []
             logging.info("Decoding...")
-            for fold_ind, (train, test) in enumerate(
-                    cv.split(data["position_info"].index)):
-                logging.info(f"Fold #{fold_ind + 1}")
-                # train = train[is_outbound[train].values]
-                classifier = ClusterlessClassifier(**classifier_parameters)
-                logging.info("Fitting model...")
-                classifier.fit(
-                    position=data["position_info"].iloc[train].linear_position,
-                    multiunits=data["multiunits"].isel(time=train),
-                    is_training=notnull.iloc[train],
-                    track_graph=data["track_graph"],
-                    edge_order=WTRACK_EDGE_ORDER,
-                    edge_spacing=WTRACK_EDGE_SPACING,
-                    encoding_group_labels=inbound_outbound_labels[train],
-                    encoding_group_to_state=encoding_group_to_state
-                )
-                # save the model
-                classifier.save_model(
-                    os.path.join(
-                        PROCESSED_DATA_DIR,
-                        f"{epoch_identifier}_clusterless_foward_reverse_classifier"
-                        f"_{fold_ind:02d}.pkl"))
-                logging.info('Predicting posterior...')
-                results.append(
-                    classifier.predict(
-                        data["multiunits"].isel(time=test),
-                        time=data["position_info"].iloc[test].index /
-                        np.timedelta64(1, "s"),
-                        state_names=state_names,
-                        use_gpu=True,
-                    )
-                )
+            classifier = ClusterlessClassifier(**classifier_parameters)
 
-            results = xr.concat(results, dim="time")
+            logging.info("Fitting model...")
+            classifier.fit(
+                position=data["position_info"].linear_position,
+                multiunits=data["multiunits"],
+                is_training=notnull & (data['position_info'].nose_vel > 4),
+                track_graph=data["track_graph"],
+                edge_order=WTRACK_EDGE_ORDER,
+                edge_spacing=WTRACK_EDGE_SPACING,
+                encoding_group_labels=inbound_outbound_labels,
+                encoding_group_to_state=encoding_group_to_state
+            )
+            # save the model
+            classifier.save_model(
+                os.path.join(
+                    PROCESSED_DATA_DIR,
+                    f"{epoch_identifier}_clusterless_forward_reverse_classifier.pkl"))
+            logging.info('Predicting posterior...')
+            results = classifier.predict(
+                data["multiunits"],
+                time=data["position_info"].index /
+                np.timedelta64(1, "s"),
+                state_names=state_names,
+                use_gpu=True,
+            )
 
             logging.info("Saving results...")
             results.to_netcdf(results_filename)
