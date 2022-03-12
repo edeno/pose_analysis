@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import xarray as xr
+from scipy.stats import zscore
 from src.parameters import SAMPLING_FREQUENCY
 
 
@@ -715,3 +716,130 @@ def make_2D_classifier_movie(
         movie.save(movie_name, writer=writer)
 
     return fig, movie
+
+
+def plot_detector(time_ind, data, replay_detector, detector_results,
+                  figsize=(11, 6.0)):
+    fig, axes = plt.subplots(6, 1,
+                             figsize=figsize,
+                             sharex=True,
+                             constrained_layout=True,
+                             gridspec_kw={
+                                 'height_ratios': [1, 1, 3, 1, 3, 1]},
+                             dpi=100)
+    time = data['spikes'].iloc[time_ind].index / np.timedelta64(1, 's')
+
+    # axes 0
+    start_time = data['spikes'].iloc[time_ind].index.min()
+    end_time = data['spikes'].iloc[time_ind].index.max()
+    ripple_consensus_trace = zscore(
+        data['ripple_consensus_trace'], nan_policy='omit').loc[start_time:end_time]
+
+    max_consensus = max(int(np.ceil(ripple_consensus_trace.max())), 5)
+    min_consensus = min(int(np.ceil(ripple_consensus_trace.min())), -1)
+    ripple_consensus_trace_time = ripple_consensus_trace.index / \
+        np.timedelta64(1, 's')
+
+    axes[0].fill_between(
+        time, np.ones_like(time) * max_consensus,
+        where=data['ripple_labels'].iloc[time_ind].values.squeeze() > 0,
+        color='red', zorder=-2, alpha=0.6, step='pre')
+    axes[0].fill_between(
+        ripple_consensus_trace_time,
+        ripple_consensus_trace.values.squeeze(), color='black')
+    axes[0].set_ylim((min_consensus, max_consensus))
+    axes[0].set_yticks((min_consensus, max_consensus))
+    axes[0].set_ylabel("Ripple\nStd.")
+
+    # axes 1
+    multiunit_firing = (
+        data["multiunit_firing_rate"]
+        .reset_index(drop=True)
+        .set_index(
+            data["multiunit_firing_rate"].index / np.timedelta64(1, "s"))
+    )
+    max_multiunit = np.ceil(
+        data["multiunit_firing_rate"].values.max()).astype(int)
+    axes[1].fill_between(
+        multiunit_firing.iloc[time_ind].index.values,
+        multiunit_firing.iloc[time_ind].values.squeeze(),
+        color="black",
+    )
+    axes[1].fill_between(
+        time, np.ones_like(time) * max_multiunit,
+        where=data["multiunit_high_synchrony_labels"].iloc[time_ind].values.squeeze() > 0,
+        color='blue', zorder=-2, alpha=0.6, step='pre')
+    axes[1].set_ylim((0, max_multiunit))
+    axes[1].set_yticks((0, max_multiunit))
+    axes[1].set_ylabel("Multiunit\nRate\n[spikes / s]")
+
+    # axes 2
+    try:
+        place_fields = (
+            replay_detector._spiking_likelihood
+            .keywords['place_conditional_intensity']).squeeze()
+        n_neurons = place_fields.shape[1]
+        place_field_max = np.nanargmax(place_fields, axis=0)
+        linear_position_order = place_field_max.argsort(axis=0).squeeze()
+        spike_time_ind, neuron_ind = np.nonzero(
+            np.asarray(data['spikes'].iloc[time_ind])[:, linear_position_order])
+        axes[2].set_ylabel('Cells')
+    except AttributeError:
+        spike_time_ind, neuron_ind = np.nonzero(np.any(~np.isnan(
+            data['multiunits'].isel(time=time_ind)), axis=1).values)
+        n_neurons = data['multiunits'].shape[-1]
+        axes[2].set_ylabel('Tetrodes')
+
+    axes[2].scatter(time[spike_time_ind], neuron_ind,
+                    clip_on=False, s=10, color='black', marker='|', rasterized=True)
+    axes[2].set_ylim((0, n_neurons))
+    axes[2].set_yticks((0, n_neurons))
+    axes[2].fill_between(
+        time, np.ones_like(time) * n_neurons,
+        where=detector_results.isel(
+            time=time_ind).non_local_probability >= 0.80,
+        color='green', zorder=-1, alpha=0.6, step='pre')
+
+    # axes 3
+    detector_results.isel(time=time_ind).non_local_probability.plot(
+        x='time', ax=axes[3], color='black', clip_on=False)
+    axes[3].set_ylabel('Prob.')
+    axes[3].set_xlabel("")
+    axes[3].set_ylim((0, 1))
+
+    cmap = copy.copy(plt.get_cmap('bone_r'))
+    cmap.set_bad(color="lightgrey", alpha=1.0)
+
+    # axes 4
+    (detector_results
+     .isel(time=time_ind)
+     .acausal_posterior
+     .sum('state')
+     .where(replay_detector.is_track_interior_)
+     .plot(x='time', y='position', ax=axes[4], cmap=cmap,
+           vmin=0.0, vmax=0.05))
+    axes[4].scatter(data['position_info'].iloc[time_ind].index /
+                    np.timedelta64(1, 's'),
+                    data['position_info'].iloc[time_ind].linear_position,
+                    s=1,
+                    color='magenta', clip_on=False)
+    axes[4].set_xlabel("")
+    max_position = np.ceil(
+        data['position_info'].linear_position.max()).astype(int)
+    axes[4].set_yticks((0.0, max_position))
+    axes[4].set_ylim((0.0, max_position))
+    axes[4].set_ylabel('Position [cm]')
+
+    # axes 5
+    speed = np.asarray(data['position_info'].iloc[time_ind].nose_vel).squeeze()
+    max_speed = np.ceil(speed.max()).astype(int)
+    max_speed = max(5, max_speed)
+    axes[5].fill_between(time, speed, color='grey')
+    axes[5].axhline(4, color='black', linestyle='--', linewidth=1)
+    axes[5].set_ylabel('Speed\n[cm / s]')
+    axes[5].set_yticks((0.0, max_speed))
+    axes[5].set_ylim((0.0, max_speed))
+
+    axes[-1].set_xlabel('Time [s]')
+    axes[-1].xaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
+    sns.despine(offset=5)
