@@ -44,6 +44,8 @@ def main():
     args = get_command_line_arguments()
 
     epoch_info = make_epochs_dataframe(ANIMALS)
+    epoch_info = epoch_info.loc[(epoch_info.type == 'run')]
+
     for epoch_key in epoch_info.index:
         run_bash(epoch_key, log_directory, args)
 
