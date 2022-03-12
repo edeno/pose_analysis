@@ -21,30 +21,6 @@ logging.basicConfig(
     datefmt='%d-%b-%y %H:%M:%S')
 
 
-def setup_logging(epoch_key,
-                  date_format='%d-%b-%y %H:%M:%S',
-                  format='%(asctime)s %(message)s',
-                  type=''):
-    animal, day, epoch = epoch_key
-    log_filename = (f"logs/{animal}_{day:02d}_{epoch:02d}"
-                    f"_{type}.log")
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(fmt=format, datefmt=date_format)
-
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.INFO)
-    stdout_handler.setFormatter(formatter)
-
-    file_handler = logging.FileHandler(log_filename)
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stdout_handler)
-
-
 def get_is_training(data, training_type='no_ripple_and_no_ascending_theta'):
     speed = np.asarray(data['position_info'].nose_vel).squeeze()
     not_ripple = ~np.asarray(data['is_ripple']).squeeze()
@@ -66,8 +42,6 @@ def decode(
     overwrite=True
 ):
     print(epoch_key)
-
-    # setup_logging(epoch_key, type=f"{data_type}_non_local_{training_type}")
 
     epoch_identifier = f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
     results_filename = os.path.join(
