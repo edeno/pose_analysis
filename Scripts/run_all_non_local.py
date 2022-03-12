@@ -28,11 +28,14 @@ def run_bash(epoch_key, log_directory, args):
         bash_cmd += ' --overwrite'
 
     log_file = os.path.join(
-        log_directory, f'{animal}_{day:02d}_{epoch:02d}.log')
-    with open(log_file, 'w') as f:
+        log_directory,
+        f'{animal}_{day:02d}_{epoch:02d}_{args.data_type}_'
+        f'{args.training_type}.log')
+
+    with open(log_file, 'w') as file:
         try:
             subprocess.run(bash_cmd, shell=True, check=True,
-                           stderr=subprocess.STDOUT, stdout=f)
+                           stderr=subprocess.STDOUT, stdout=file)
         except subprocess.CalledProcessError:
             print(f'Error in {epoch_key}')
 
