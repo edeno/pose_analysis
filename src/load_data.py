@@ -9,8 +9,10 @@ from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          get_trial_time, make_epochs_dataframe,
                                          make_neuron_dataframe,
                                          make_tetrode_dataframe)
-from loren_frank_data_processing.core import get_data_structure
+from loren_frank_data_processing.core import (get_data_structure,
+                                              reconstruct_time)
 from loren_frank_data_processing.DIO import get_DIO, get_DIO_indicator
+from loren_frank_data_processing.tetrodes import get_LFP_filename
 from loren_frank_data_processing.well_traversal_classification import (
     score_inbound_outbound, segment_path)
 from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
@@ -18,6 +20,7 @@ from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
                               multiunit_HSE_detector)
 from ripple_detection.core import gaussian_smooth, get_envelope
 from scipy.io import loadmat
+from scipy.signal import filtfilt, hilbert
 from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
 from src.parameters import (ANIMALS, LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING,
@@ -192,10 +195,8 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time,
             ripple_filtered_lfps, LFP_SAMPLING_FREQUENCY),
         index=ripple_filtered_lfps.index,
         columns=['ripple_consensus_trace'])
-    ripple_consensus_trace_zscore = pd.DataFrame(
-        zscore(ripple_consensus_trace, nan_policy='omit'),
-        index=ripple_filtered_lfps.index,
-        columns=['ripple_consensus_trace_zscore'])
+    ripple_consensus_trace_zscore = zscore(
+        ripple_consensus_trace, nan_policy='omit')
 
     instantaneous_ripple_power = np.full_like(ripple_filtered_lfps, np.nan)
     not_null = np.all(pd.notnull(ripple_filtered_lfps), axis=1)
@@ -322,6 +323,8 @@ def load_data(epoch_key,
     dio = get_DIO(epoch_key, ANIMALS)
     dio_indicator = get_DIO_indicator(
         epoch_key, ANIMALS, time_function=_time_function)
+    gnd_lfp, theta_filtered_lfp, is_descending = get_descending_theta(
+        tetrode_info, position_info)
 
     return {
         'position_info': position_info,
@@ -333,6 +336,9 @@ def load_data(epoch_key,
         'track_graph': track_graph,
         'edge_order': edge_order,
         'edge_spacing': edge_spacing,
+        'gnd_lfp': gnd_lfp,
+        'theta_filtered_lfp': theta_filtered_lfp,
+        'is_descending': is_descending,
         **adhoc_ripple,
         **adhoc_multiunit,
     }
@@ -480,3 +486,118 @@ def get_sleep_and_prev_run_epochs():
     prev_run_epoch_keys = list(itertools.chain(*prev_run_epoch_keys))
 
     return sleep_epoch_keys, prev_run_epoch_keys
+
+
+def get_gnd_tetrode_filename(tetrode_key, animals):
+    '''Returns a file name for the filtered LFP for an epoch.
+    Parameters
+    ----------
+    tetrode_key : tuple
+        Unique key identifying the tetrode. Elements are
+        (animal_short_name, day, epoch, tetrode_number).
+    animals : dict of named-tuples
+        Dictionary containing information about the directory for each
+        animal. The key is the animal_short_name.
+    Returns
+    -------
+    filename : str
+        File path to tetrode file LFP
+    '''
+    animal, day, epoch, tetrode_number = tetrode_key
+    # add eeggnd to filename to get correct theta from a reference ntrode
+    filename = (f'{animals[animal].short_name}eeggnd{day:02d}'
+                f'-{epoch}-{tetrode_number:02d}.mat')
+    return os.path.join(animals[animal].directory, 'EEG', filename)
+
+
+def _get_thetafilter_kernel():
+    '''Returns the pre-computed theta filter kernel from the Frank lab.
+    The kernel is 150-250 Hz bandpass with 40 db roll off and 10 Hz
+    sidebands. Sampling frequency is 1500 Hz.
+    '''
+    filter_file = '../src/thetafilter_5_11_1500.mat'
+    thetafilter = loadmat(filter_file)
+    return thetafilter['thetafilter_5_11_1500']['kernel'][0][0].flatten(), 1
+
+
+def filter_theta_band(data):
+    '''Returns a bandpass filtered signal between 150-250 Hz
+
+    Parameters
+    ----------
+    data : array_like, shape (n_time,)
+
+    Returns
+    -------
+    filtered_data : array_like, shape (n_time,)
+
+    '''
+    filter_numerator, filter_denominator = _get_thetafilter_kernel()
+    is_nan = np.any(np.isnan(data), axis=-1)
+    filtered_data = np.full_like(data, np.nan)
+    filtered_data[~is_nan] = filtfilt(
+        filter_numerator, filter_denominator, data[~is_nan], axis=0)
+    return filtered_data
+
+
+def get_gnd_LFP_dataframe(tetrode_key, animals):
+    '''Gets the LFP data for a given epoch and tetrode.
+
+    Parameters
+    ----------
+    tetrode_key : tuple
+        Unique key identifying the tetrode. Elements are
+        (animal_short_name, day, epoch, tetrode_number).
+    animals : dict of named-tuples
+        Dictionary containing information about the directory for each
+        animal. The key is the animal_short_name.
+
+    Returns
+    -------
+    LFP : pandas dataframe
+        Contains the electric potential and time
+    '''
+    try:
+        lfp_file = loadmat(get_gnd_tetrode_filename(tetrode_key, ANIMALS))
+        lfp_data = lfp_file['eeggnd'][0, -1][0, -1][0, -1]
+        lfp_time = reconstruct_time(
+            lfp_data['starttime'][0, 0].item(),
+            lfp_data['data'][0, 0].size,
+            float(lfp_data['samprate'][0, 0].squeeze()))
+        return pd.Series(
+            data=lfp_data['data'][0, 0].squeeze().astype(float),
+            index=lfp_time,
+            name='{0}_{1:02d}_{2:02}_{3:03}'.format(*tetrode_key))
+    except (FileNotFoundError, TypeError):
+        logger.warning('Failed to load file: {0}'.format(
+            get_LFP_filename(tetrode_key, animals)))
+
+
+def get_descending_theta(tetrode_info, position_info):
+    '''
+    descending : more non-local
+    ascending : more local/reverse
+    '''
+    tetrode_key = tetrode_info.loc[tetrode_info.suparea == 'cc'].index[0]
+
+    gnd_lfp = get_gnd_LFP_dataframe(tetrode_key, ANIMALS)
+    theta_filtered_lfp = filter_theta_band(gnd_lfp[:, np.newaxis])
+
+    is_nan = np.isnan(theta_filtered_lfp)
+    phase_angle = np.full_like(theta_filtered_lfp, np.nan)
+    phase_angle[~is_nan] = np.angle(
+        hilbert(theta_filtered_lfp[~is_nan], axis=0))
+
+    is_descending = (phase_angle >= 0.0).squeeze()
+    is_descending = pd.Series(is_descending, index=gnd_lfp.index)
+    new_index = pd.Index(
+        np.unique(np.concatenate((position_info.index, is_descending.index))),
+        name="time"
+    )
+    is_descending = (
+        is_descending.reindex(index=new_index)
+        .interpolate(method="pad")
+        .reindex(index=position_info.index)
+    )
+
+    return gnd_lfp, theta_filtered_lfp, is_descending
