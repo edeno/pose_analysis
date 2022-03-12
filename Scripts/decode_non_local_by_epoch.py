@@ -2,7 +2,6 @@ import logging
 import os
 import subprocess
 import sys
-
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -15,7 +14,6 @@ import numpy as np
 from replay_identification import ReplayDetector
 from src.load_data import load_data
 from src.parameters import PROCESSED_DATA_DIR
-
 
 logging.basicConfig(
     level='INFO',
@@ -68,7 +66,7 @@ def decode(
     overwrite=True
 ):
     print(epoch_key)
-    
+
     # setup_logging(epoch_key, type=f"{data_type}_non_local_{training_type}")
 
     epoch_identifier = f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
@@ -76,22 +74,22 @@ def decode(
         PROCESSED_DATA_DIR,
         f"{epoch_identifier}_{data_type}_non_local_{training_type}.nc"
     )
- 
+
     logging.info(' START '.center(50, '#'))
-    
+
     git_hash = subprocess.run(
         ['git', 'rev-parse', 'HEAD'],
         stdout=subprocess.PIPE, universal_newlines=True).stdout
     logging.info('Git Hash: {git_hash}'.format(git_hash=git_hash.rstrip()))
-    
+
     logging.info(f'data type: {data_type}')
     logging.info(f'training type: {training_type}')
-    
+
     if Path(results_filename).is_file() and not overwrite:
         logging.info("Found existing results and not overwriting...")
         logging.info('Done!\n')
         return
-    
+
     logging.info("Loading data...")
     data = load_data(epoch_key,
                      position_to_linearize=['nose_x', 'nose_y'],
@@ -118,9 +116,9 @@ def decode(
 
     detector = ReplayDetector(**detector_parameters)
     logging.info(detector)
-    
+
     if data_type == 'clusterless':
-        
+
         # Garbage collect GPU memory
         mempool = cp.get_default_memory_pool()
         pinned_mempool = cp.get_default_pinned_memory_pool()
@@ -180,7 +178,7 @@ def decode(
     results.to_netcdf(results_filename)
     logging.info('Done!\n')
 
-    
+
 def get_command_line_arguments():
     parser = ArgumentParser()
     parser.add_argument('Animal', type=str, help='Short name of animal')
@@ -188,22 +186,24 @@ def get_command_line_arguments():
     parser.add_argument('Epoch', type=int,
                         help='Epoch number of recording session')
     parser.add_argument('--data_type', type=str, default='clusterless')
-    parser.add_argument('--training_type', type=str, default='no_ripple_and_no_ascending_theta')
+    parser.add_argument('--training_type', type=str,
+                        default='no_ripple_and_no_ascending_theta')
     parser.add_argument('--overwrite', action='store_true')
 
     return parser.parse_args()
 
+
 def main():
     args = get_command_line_arguments()
     epoch_key = (args.Animal, args.Day, args.Epoch)
-    
+
     decode(
         epoch_key,
         training_type=args.training_type,
         data_type=args.data_type,
         overwrite=args.overwrite
     )
-        
-        
+
+
 if __name__ == '__main__':
     sys.exit(main())
