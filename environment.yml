@@ -1,6 +1,7 @@
 name: pose_analysis
 channels:
 - defaults
+- menpo
 - conda-forge
 - edeno
 dependencies:
@@ -24,6 +25,8 @@ dependencies:
 - tqdm
 - statsmodels
 - patsy
+- opencv
+- ffmpeg
 - jupyter
 - jupyterlab
 - nb_conda
