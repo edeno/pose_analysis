@@ -2,6 +2,8 @@ import networkx as nx
 import numpy as np
 from loren_frank_data_processing.track_segment_classification import (
     get_track_segments_from_graph, project_points_to_segment)
+import pandas as pd
+import xarray as xr
 
 
 def _get_MAP_estimate_2d_position_edges(posterior, track_graph, decoder):
@@ -51,9 +53,11 @@ def add_node(pos, edge, graph, node_name):
         graph, [node_name, node2], distance=right_distance)
 
 #
+
+
 def calculate_replay_distance(
         posterior, track_graph, decoder, position_2D, track_segment_id):
-    
+
     track_segment_id = np.asarray(track_segment_id).astype(int).squeeze()
     position_2D = np.asarray(position_2D)
     map_position_2d, map_edges = _get_MAP_estimate_2d_position_edges(
@@ -97,3 +101,85 @@ def get_place_field_max(classifier):
         return np.asarray(
             [classifier.place_bin_centers_[gpi.argmax()]
              for gpi in classifier.ground_process_intensities_])
+
+
+def maximum_a_posteriori_estimate(posterior_density):
+    '''
+
+    Parameters
+    ----------
+    posterior_density : xarray.DataArray, shape (n_time, n_x_bins, n_y_bins)
+
+    Returns
+    -------
+    map_estimate : ndarray, shape (n_time,)
+
+    '''
+    try:
+        stacked_posterior = np.log(posterior_density.stack(
+            z=['x_position', 'y_position']))
+        map_estimate = stacked_posterior.z[stacked_posterior.argmax('z')]
+        map_estimate = np.asarray(map_estimate.values.tolist())
+    except KeyError:
+        map_estimate = posterior_density.position[
+            np.log(posterior_density).argmax('position')]
+        map_estimate = np.asarray(map_estimate)[:, np.newaxis]
+    return map_estimate
+
+
+def get_probability_of_state(results, posterior_type='acausal_posterior'):
+    fragmented = (results[posterior_type]
+                  .sel(state=['Inbound-Fragmented', 'Outbound-Fragmented'])
+                  .sum(['state', 'position'])
+                  .assign_coords({'state': 'Fragmented'}))
+    probability = (results[posterior_type]
+                   .sum('position')
+                   .drop_sel(state=['Inbound-Fragmented', 'Outbound-Fragmented']))
+    return xr.concat((probability, fragmented), dim='state')
+
+
+def classify_states(probability, probability_threshold=0.8, sampling_frequency=500):
+    is_classified = (probability > probability_threshold).sum('state').astype(bool)
+    max_state = probability.idxmax('state')
+    classified_states_by_time = max_state.isel(time=is_classified)
+
+    indexes = np.unique(classified_states_by_time.values, return_index=True)[1]
+    classified_states = classified_states_by_time.values[sorted(indexes)]
+    is_state = (probability > probability_threshold).sum('time') > 0
+    state_duration = (probability > probability_threshold).sum('time') / sampling_frequency
+    return classified_states_by_time, classified_states, is_state.values, state_duration.values
+
+
+def get_replay_info(data, results, epoch_key):
+    classified_states = []
+    is_state = []
+    state_duration = []
+
+    for ripple_number in data['ripple_times'].index:
+        ripple = data['ripple_times'].loc[ripple_number]
+
+        start_time = ripple.start_time
+        end_time = ripple.end_time
+
+        probability = get_probability_of_state(
+                        results.sel(time=slice(start_time / np.timedelta64(1, 's'),
+                                               end_time / np.timedelta64(1, 's'))))
+        _, classified_states_temp, is_state_temp, state_duration_temp = classify_states(probability)
+        classified_states.append(classified_states_temp)
+        is_state.append(is_state_temp)
+        state_duration.append(state_duration_temp)
+        
+    is_state = pd.DataFrame(np.stack(is_state),
+                            columns=probability.state,
+                            index=data['ripple_times'].index)
+    is_state['Animal'] = epoch_key[0]
+    is_state['Day'] = epoch_key[1]
+    is_state['Epoch'] = epoch_key[2]
+    
+    state_duration = pd.DataFrame(np.stack(state_duration),
+                                  columns=probability.state + '_duration',
+                                  index=data['ripple_times'].index)
+    replay_info = pd.concat((is_state, state_duration), axis=1)
+    replay_info = replay_info.reset_index().set_index(['Animal', 'Day', 'Epoch', 'replay_number'])
+    
+    return replay_info, classified_states
