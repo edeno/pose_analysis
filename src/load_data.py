@@ -32,6 +32,11 @@ from track_linearization import make_track_graph as _make_track_graph
 logger = getLogger(__name__)
 
 
+ENVIRONMENTS = {'lineartrack': 'linearTrack',
+                'lineartack': 'linearTrack',
+                'wtrack': 'wTrack'}
+
+
 def get_track_segments(epoch_key, animals):
     '''
 
@@ -48,8 +53,6 @@ def get_track_segments(epoch_key, animals):
     '''
     environment = np.asarray(
         make_epochs_dataframe(animals).loc[epoch_key].environment)[0]
-    ENVIRONMENTS = {'lineartrack': 'linearTrack',
-                    'wtrack': 'wTrack'}
 
     coordinate_path = os.path.join(
         animals[epoch_key[0]].directory,
@@ -67,8 +70,6 @@ def get_well_locations(epoch_key, animals):
     '''
     environment = np.asarray(
         make_epochs_dataframe(animals).loc[epoch_key].environment)[0]
-    ENVIRONMENTS = {'lineartrack': 'linearTrack',
-                    'wtrack': 'wTrack'}
 
     coordinate_path = os.path.join(
         animals[epoch_key[0]].directory,
@@ -274,7 +275,7 @@ def load_data(epoch_key,
     logger.info('Loading position info...')
     environment = np.asarray(
         make_epochs_dataframe(ANIMALS).loc[epoch_key].environment)[0]
-    if environment == "lineartrack":
+    if environment in ["lineartrack", "lineartack"]:
         edge_order, edge_spacing = LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING
     elif environment == "wtrack":
         edge_order, edge_spacing = WTRACK_EDGE_ORDER, WTRACK_EDGE_SPACING
@@ -601,3 +602,17 @@ def get_descending_theta(tetrode_info, position_info):
     )
 
     return gnd_lfp, theta_filtered_lfp, is_descending
+
+
+def get_is_training(data, training_type='no_ripple_and_no_ascending_theta'):
+    speed = np.asarray(data['position_info'].nose_vel).squeeze()
+    not_ripple = ~np.asarray(data['is_ripple']).squeeze()
+    not_ascending_theta = np.asarray(data['is_descending']).squeeze()
+    training_types = {
+        'all': np.ones_like(not_ripple),
+        'no_ripple': not_ripple,
+        'no_ripple_and_no_ascending_theta': (
+            (not_ripple & (speed <= 4)) | not_ascending_theta & (speed > 4))
+    }
+
+    return training_types[training_type]
