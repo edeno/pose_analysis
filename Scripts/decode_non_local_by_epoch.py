@@ -11,7 +11,8 @@ except ImportError:
     import numpy as cp
 
 import numpy as np
-from replay_identification import ReplayDetector
+from replay_identification.detectors import (ClusterlessDetector,
+                                             SortedSpikesDetector)
 from src.load_data import load_data
 from src.parameters import PROCESSED_DATA_DIR
 
@@ -39,14 +40,19 @@ def decode(
     epoch_key,
     training_type='no_ripple_and_no_ascending_theta',
     data_type='clusterless',
-    overwrite=True
+    use_EM=True,
+    overwrite=True,
 ):
     print(epoch_key)
 
     epoch_identifier = f"{epoch_key[0]}_{epoch_key[1]:02d}_{epoch_key[2]:02d}"
+    if use_EM:
+        em_str = '_EM'
+    else:
+        em_str = ''
     results_filename = os.path.join(
         PROCESSED_DATA_DIR,
-        f"{epoch_identifier}_{data_type}_non_local_{training_type}.nc"
+        f"{epoch_identifier}_{data_type}_non_local_{training_type}{em_str}.nc"
     )
 
     logging.info(' START '.center(50, '#'))
@@ -74,23 +80,6 @@ def decode(
     # estimate by ripple
     is_training = get_is_training(data, training_type=training_type)
 
-    detector_parameters = {
-        'movement_var': 6.0,
-        'replay_speed': 1,
-        'place_bin_size': 2.0,
-        'spike_model_knot_spacing': 12.0,
-        'spike_model_penalty': 1E-5,
-        'movement_state_transition_type': 'random_walk',
-        'multiunit_model_kwargs': {
-            'mark_std': 24.0,
-            'position_std': 4.0,
-            'block_size': 100},
-        'discrete_state_transition_type': 'ripples_no_speed_threshold',
-    }
-
-    detector = ReplayDetector(**detector_parameters)
-    logging.info(detector)
-
     if data_type == 'clusterless':
 
         # Garbage collect GPU memory
@@ -99,54 +88,71 @@ def decode(
         mempool.free_all_blocks()
         pinned_mempool.free_all_blocks()
 
-        detector.fit(
-            is_ripple=data['is_ripple'],
-            is_training=is_training,
-            speed=data['position_info'].nose_vel,
-            position=data['position_info'].linear_position,
-            multiunit=data['multiunits'],
+        detector_parameters = dict(
             track_graph=data['track_graph'],
             edge_order=data['edge_order'],
             edge_spacing=data['edge_spacing'],
-            use_gpu=True,
+            clusterless_algorithm='multiunit_likelihood_integer_gpu',
+            clusterless_algorithm_params=dict(
+                mark_std=24.0, position_std=6.0, block_size=100),
         )
 
-        results = detector.predict(
-            speed=data['position_info'].nose_vel,
-            multiunit=data['multiunits'],
+        detector = ClusterlessDetector(**detector_parameters)
+        logging.info(detector)
+
+        fit_args = dict(
+            is_training=is_training,
             position=data['position_info'].linear_position,
-            time=data['position_info'].index / np.timedelta64(1, 's'),
-            use_likelihoods=['multiunit'],
-            use_acausal=True,
-            set_no_spike_to_equally_likely=False,
-            use_gpu=False
+            multiunits=data['multiunits'],
         )
+
+        predict_args = dict(
+            position=data['position_info'].linear_position,
+            multiunits=data['multiunits'],
+            time=data['position_info'].index / np.timedelta64(1, 's'),
+        )
+
     elif data_type == 'sorted_spikes':
-        detector.fit(
-            is_ripple=data['is_ripple'],
-            is_training=is_training,
-            speed=data['position_info'].nose_vel,
-            position=data['position_info'].linear_position,
-            spikes=data['spikes'],
+
+        detector_parameters = dict(
             track_graph=data['track_graph'],
             edge_order=data['edge_order'],
             edge_spacing=data['edge_spacing'],
-            use_gpu=False,
+            spike_model_knot_spacing=12.5,
+        )
+        detector = SortedSpikesDetector(**detector_parameters)
+
+        fit_args = dict(
+            is_training=is_training,
+            position=data['position_info'].linear_position,
+            spikes=data['spikes'],
         )
 
-        results = detector.predict(
-            speed=data['position_info'].nose_vel,
-            spikes=data['spikes'],
+        predict_args = dict(
             position=data['position_info'].linear_position,
+            spikes=data['spikes'],
             time=data['position_info'].index / np.timedelta64(1, 's'),
-            use_likelihoods=['spikes'],
-            use_acausal=True,
-            set_no_spike_to_equally_likely=False,
-            use_gpu=False
         )
+
     else:
         logging.error('Data type not supported...')
         return
+
+    if use_EM:
+        results, data_log_likelihood = detector.estimate_parameters(
+            fit_args,
+            predict_args,
+            estimate_state_transition=True,
+            estimate_likelihood=True,
+            max_iter=20,
+        )
+        results.attrs['data_log_likelihoods'] = data_log_likelihood
+    else:
+        detector.fit(**fit_args)
+        results = detector.predict(**predict_args)
+
+    results.assign(discrete_state_transition=(
+        ['state', 'state'], detector.discrete_state_transition_))
 
     logging.info("Saving results...")
     results.to_netcdf(results_filename)
@@ -163,6 +169,7 @@ def get_command_line_arguments():
     parser.add_argument('--training_type', type=str,
                         default='no_ripple_and_no_ascending_theta')
     parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--use_EM', action='store_true')
 
     return parser.parse_args()
 
@@ -175,7 +182,8 @@ def main():
         epoch_key,
         training_type=args.training_type,
         data_type=args.data_type,
-        overwrite=args.overwrite
+        overwrite=args.overwrite,
+        use_EM=args.use_EM,
     )
 
 

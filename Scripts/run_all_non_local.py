@@ -13,6 +13,7 @@ def get_command_line_arguments():
     parser.add_argument('--training_type', type=str,
                         default='no_ripple_and_no_ascending_theta')
     parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--use_EM', action='store_true')
 
     return parser.parse_args()
 
@@ -27,10 +28,16 @@ def run_bash(epoch_key, log_directory, args):
     if args.overwrite:
         bash_cmd += ' --overwrite'
 
+    if args.use_EM:
+        bash_cmd += ' --use_EM'
+        em_str = '_EM'
+    else:
+        em_str = ''
+
     log_file = os.path.join(
         log_directory,
         f'{animal}_{day:02d}_{epoch:02d}_{args.data_type}_'
-        f'{args.training_type}.log')
+        f'{args.training_type}{em_str}.log')
 
     with open(log_file, 'w') as file:
         try:
