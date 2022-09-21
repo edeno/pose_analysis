@@ -719,7 +719,7 @@ def make_2D_classifier_movie(
 
 
 def plot_detector(time_ind, data, replay_detector, detector_results,
-                  figsize=(11, 6.0)):
+                  figsize=(11, 6.0), is_non_local=None):
     fig, axes = plt.subplots(6, 1,
                              figsize=figsize,
                              sharex=True,
@@ -794,11 +794,18 @@ def plot_detector(time_ind, data, replay_detector, detector_results,
                     clip_on=False, s=10, color='black', marker='|', rasterized=True)
     axes[2].set_ylim((0, n_neurons))
     axes[2].set_yticks((0, n_neurons))
-    axes[2].fill_between(
-        time, np.ones_like(time) * n_neurons,
-        where=detector_results.isel(
-            time=time_ind).non_local_probability >= 0.80,
-        color='green', zorder=-1, alpha=0.6, step='pre')
+    
+    if is_non_local is not None:
+        axes[2].fill_between(
+            time, np.ones_like(time) * n_neurons,
+            where=np.asarray(is_non_local).squeeze()[time_ind],
+            color='green', zorder=-1, alpha=0.6, step='pre')
+    else:
+        axes[2].fill_between(
+            time, np.ones_like(time) * n_neurons,
+            where=detector_results.isel(
+                time=time_ind).non_local_probability >= 0.80,
+            color='green', zorder=-1, alpha=0.6, step='pre')
 
     # axes 3
     detector_results.isel(time=time_ind).non_local_probability.plot(

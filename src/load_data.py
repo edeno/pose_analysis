@@ -196,6 +196,15 @@ def get_adhoc_ripple(epoch_key, tetrode_info, position_time,
             ripple_filtered_lfps, LFP_SAMPLING_FREQUENCY),
         index=ripple_filtered_lfps.index,
         columns=['ripple_consensus_trace'])
+
+    interpolation_method = 'linear'
+
+    new_index = pd.Index(np.unique(np.concatenate(
+        (ripple_consensus_trace.index, position_time))), name='time')
+    ripple_consensus_trace = (ripple_consensus_trace
+                              .reindex(index=new_index)
+                              .interpolate(method=interpolation_method)
+                              .reindex(index=position_time))
     ripple_consensus_trace_zscore = zscore(
         ripple_consensus_trace, nan_policy='omit')
 
@@ -235,10 +244,10 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function,
             multiunit_spikes, SAMPLING_FREQUENCY),
         index=position_info.index,
         columns=['firing_rate'])
-    multiunit_rate_change = multiunit_firing_rate.transform(
-        lambda df: df / df.mean())
-    multiunit_rate_zscore = np.log(multiunit_firing_rate).transform(
-        lambda df: (df - df.mean()) / df.std())
+    multiunit_rate_zscore = (
+        (multiunit_firing_rate -
+         np.nanmean(multiunit_firing_rate[position_info.nose_vel < 4])) /
+        np.nanstd(multiunit_firing_rate[position_info.nose_vel < 4]))
 
     speed_feature = position_to_linearize[0].split('_')[0]
     speed = np.asarray(position_info[f'{speed_feature}_vel'])
@@ -262,7 +271,6 @@ def get_adhoc_multiunit(position_info, tetrode_keys, time_function,
         multiunit_firing_rate=multiunit_firing_rate,
         multiunit_high_synchrony_times=multiunit_high_synchrony_times,
         multiunit_high_synchrony_labels=multiunit_high_synchrony_labels,
-        multiunit_rate_change=multiunit_rate_change,
         multiunit_rate_zscore=multiunit_rate_zscore,
         is_multiunit_high_synchrony=is_multiunit_high_synchrony)
 
@@ -324,7 +332,7 @@ def load_data(epoch_key,
     dio = get_DIO(epoch_key, ANIMALS)
     dio_indicator = get_DIO_indicator(
         epoch_key, ANIMALS, time_function=_time_function)
-    gnd_lfp, theta_filtered_lfp, is_descending = get_descending_theta(
+    theta = get_theta(
         tetrode_info, position_info)
 
     return {
@@ -337,11 +345,10 @@ def load_data(epoch_key,
         'track_graph': track_graph,
         'edge_order': edge_order,
         'edge_spacing': edge_spacing,
-        'gnd_lfp': gnd_lfp,
-        'theta_filtered_lfp': theta_filtered_lfp,
-        'is_descending': is_descending,
+        **theta,
         **adhoc_ripple,
         **adhoc_multiunit,
+
     }
 
 
@@ -393,6 +400,7 @@ def _get_linear_position_hmm(
         track_graph=track_graph,
         edge_order=edge_order,
         edge_spacing=edge_spacing,
+        use_HMM=False,
     )
     position_df = pd.concat(
         (position_df,
@@ -574,7 +582,7 @@ def get_gnd_LFP_dataframe(tetrode_key, animals):
             get_LFP_filename(tetrode_key, animals)))
 
 
-def get_descending_theta(tetrode_info, position_info):
+def get_theta(tetrode_info, position_info):
     '''
     descending : more non-local
     ascending : more local/reverse
@@ -582,26 +590,50 @@ def get_descending_theta(tetrode_info, position_info):
     tetrode_key = tetrode_info.loc[tetrode_info.suparea == 'cc'].index[0]
 
     gnd_lfp = get_gnd_LFP_dataframe(tetrode_key, ANIMALS)
-    theta_filtered_lfp = filter_theta_band(gnd_lfp[:, np.newaxis])
+    theta_filtered_lfp = filter_theta_band(gnd_lfp[:, np.newaxis]).squeeze()
 
     is_nan = np.isnan(theta_filtered_lfp)
-    phase_angle = np.full_like(theta_filtered_lfp, np.nan)
-    phase_angle[~is_nan] = np.angle(
-        hilbert(theta_filtered_lfp[~is_nan], axis=0))
 
-    is_descending = (phase_angle >= 0.0).squeeze()
-    is_descending = pd.Series(is_descending, index=gnd_lfp.index)
+    analytic_signal = np.full(theta_filtered_lfp.shape, np.nan, dtype=np.complex)
+    analytic_signal[~is_nan] = hilbert(theta_filtered_lfp[~is_nan], axis=0)
+    analytic_signal = pd.Series(analytic_signal, index=gnd_lfp.index)
+
+    theta_phase = pd.Series(np.unwrap(np.angle(analytic_signal)), index=gnd_lfp.index)
+    theta_power = np.abs(analytic_signal)**2
+
     new_index = pd.Index(
-        np.unique(np.concatenate((position_info.index, is_descending.index))),
+        np.unique(np.concatenate((position_info.index,
+                                  gnd_lfp.index))),
         name="time"
     )
-    is_descending = (
-        is_descending.reindex(index=new_index)
-        .interpolate(method="pad")
+
+
+    theta_phase = (
+        theta_phase.reindex(index=new_index)
+        .interpolate(method="linear")
         .reindex(index=position_info.index)
     )
 
-    return gnd_lfp, theta_filtered_lfp, is_descending
+    theta_phase = (theta_phase + np.pi) % (2 * np.pi) - np.pi
+
+    theta_power = (
+        theta_power.reindex(index=new_index)
+        .interpolate(method="linear")
+        .reindex(index=position_info.index)
+    )
+
+    is_descending = (theta_phase >= 0.0)
+    speed = position_info.nose_vel.values.squeeze()
+    theta_power_zscore = (theta_power - np.nanmean(theta_power[speed >= 4])) / np.nanstd(theta_power[speed >= 4])
+
+    return {
+        'gnd_lfp': gnd_lfp,
+        'theta_filtered_lfp': theta_filtered_lfp,
+        'is_descending': is_descending,
+        'theta_power': theta_power,
+        'theta_phase': theta_phase,
+        'theta_power_zscore': theta_power_zscore,
+    }
 
 
 def get_is_training(data, training_type='no_ripple_and_no_ascending_theta'):
