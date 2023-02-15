@@ -8,7 +8,7 @@ dependencies:
 - "python>=3.6"
 - loren_frank_data_processing
 - ripple_detection
-- replay_trajectory_classification
+- "replay_trajectory_classification=0.7.6.dev0"
 - trajectory_analysis_tools
 - replay_identification
 - spectral_connectivity
