@@ -34,3 +34,6 @@ dependencies:
 - pytest
 - pytest-cov
 - coveralls
+- pip
+- pip:
+  - 'black[jupyter]'
