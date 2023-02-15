@@ -34,6 +34,3 @@ dependencies:
 - pytest
 - pytest-cov
 - coveralls
-- pip
-- pip:
-  - nbblack
