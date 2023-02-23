@@ -136,3 +136,8 @@ ssm/
 *.pkl
 *.avi
 *.png
+
+# Don't ignore shared data
+!Processed-Data/Jaq_3_16_position_info.csv
+!Processed-Data/Jaq_3_16_decoding_results.nc
+!Processed-Data/Jaq_3_16_cv_classifier_clusterless_nose.pkl

@@ -2,7 +2,6 @@ from os.path import abspath, dirname, join, pardir
 
 import numpy as np
 from loren_frank_data_processing import Animal
-import socket
 
 # LFP sampling frequency
 SAMPLING_FREQUENCY = 500
@@ -14,38 +13,28 @@ PROCESSED_DATA_DIR = join(ROOT_DIR, "Processed-Data")
 FIGURE_DIR = join(ROOT_DIR, "figures")
 
 
-hostname = socket.gethostname()
-
-if hostname[-12:] == "cin.ucsf.edu":
-    ANIMALS = {
-        "Jaq": Animal(
-            directory="/stelmo/abhilasha/animals/Jaq/filterframework", short_name="Jaq"
-        ),
-        "Roqui": Animal(
-            directory="/stelmo/abhilasha/animals/Roqui/filterframework",
-            short_name="Roqui",
-        ),
-        "Peanut": Animal(
-            directory="/stelmo/abhilasha/animals/Peanut/filterframework",
-            short_name="Peanut",
-        ),
-        "Lotus": Animal(
-            directory="/stelmo/abhilasha/animals/Lotus/filterframework",
-            short_name="Lotus",
-        ),
-        "Monty": Animal(
-            directory="/stelmo/abhilasha/animals/Monty/filterframework",
-            short_name="Monty",
-        ),
-    }
-else:
-    ANIMALS = {
-        "Jaq": Animal(directory=join(RAW_DATA_DIR, "Jaq")),
-        "Roqui": Animal(directory=join(RAW_DATA_DIR, "Roqui")),
-        "Peanut": Animal(directory=join(RAW_DATA_DIR, "Peanut")),
-        "Lotus": Animal(directory=join(RAW_DATA_DIR, "Lotus")),
-        "Monty": Animal(directory=join(RAW_DATA_DIR, "Monty")),
-    }
+ANIMALS = {
+    "Jaq": Animal(
+        directory="/stelmo/abhilasha/animals/Jaq/filterframework",
+        short_name="Jaq"
+    ),
+    "Roqui": Animal(
+        directory="/stelmo/abhilasha/animals/Roqui/filterframework",
+        short_name="Roqui",
+    ),
+    "Peanut": Animal(
+        directory="/stelmo/abhilasha/animals/Peanut/filterframework",
+        short_name="Peanut",
+    ),
+    "Lotus": Animal(
+        directory="/stelmo/abhilasha/animals/Lotus/filterframework",
+        short_name="Lotus",
+    ),
+    "Monty": Animal(
+        directory="/stelmo/abhilasha/animals/Monty/filterframework",
+        short_name="Monty",
+    ),
+}
 
 WTRACK_EDGE_ORDER = [(0, 1), (1, 2), (2, 3), (1, 4), (4, 5)]
 WTRACK_EDGE_SPACING = [15, 0, 15, 0]
